@@ -10,15 +10,22 @@ const fieldNumber = (entry: RecordFields, key: string): number | undefined => ty
 
 export function SalesChart({ state, from, to }: { state: ShopState; from?: string; to?: string }) {
   const data = state.metrics.daily.filter(row => (!from || row.date >= from) && (!to || row.date <= to));
+  const [showTable, setShowTable] = useState(false);
   const highest = Math.max(1, ...data.map(row => row.online + row.pos));
   return <div className="sales-chart" aria-label="กราฟยอดขายออนไลน์และหน้าร้าน">
-    <div className="chart-bars">{data.map((row, index) => <div className="chart-day" key={row.date}>
+    <div className="chart-bars" aria-hidden="true">{data.map((row, index) => <div className="chart-day" key={row.date}>
       <div className="bar-track" title={`${date(row.date)} · ออนไลน์ ${baht(row.online)} · หน้าร้าน ${baht(row.pos)}`} aria-label={`${date(row.date)} ยอดขาย ${baht(row.online + row.pos)}`}>
         <span className="bar-online" style={{ height: (row.online / highest * 100) + '%' }}/><span className="bar-pos" style={{ height: (row.pos / highest * 100) + '%' }}/>
       </div>
       <small>{data.length <= 10 || index % Math.ceil(data.length / 7) === 0 ? row.date.slice(-2) : ' '}</small>
     </div>)}</div>
     <div className="chart-legend"><span><i className="legend-online"/> ออนไลน์</span><span><i className="legend-pos"/> หน้าร้าน</span></div>
+    {data.length > 0 && <details className="chart-values" onToggle={event => setShowTable(event.currentTarget.open)}>
+      <summary>ดูตัวเลขรายวัน</summary>
+      {showTable && <div className="table-scroll"><table aria-label="ยอดขายรายวันแยกตามช่องทาง"><thead><tr><th scope="col">วันที่</th><th scope="col">ออนไลน์</th><th scope="col">หน้าร้าน</th><th scope="col">รวม</th></tr></thead>
+        <tbody>{data.map(row => <tr key={row.date}><th scope="row">{date(row.date)}</th><td>{baht(row.online)}</td><td>{baht(row.pos)}</td><td>{baht(row.online + row.pos)}</td></tr>)}</tbody>
+      </table></div>}
+    </details>}
   </div>;
 }
 export function Sales({ state, finance = false }: { state: ShopState; finance?: boolean }) {

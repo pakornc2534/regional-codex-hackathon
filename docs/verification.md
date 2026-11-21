@@ -22,13 +22,13 @@ The fake inbox and carrier events do not validate any actual Shopee or email ser
 - A browser session on the publicly deployed Site submitted an owner question to the shared demo, received a genuine model response, and found it displayed in the chat. The response reported ฿221,056 across 600 paid orders for the seven-day period. No real store was involved.
 - The account-health report, sample news, simulated carrier and simulated email are fixtures. Live web-research quality depends on the connected account and its search service. The acceptance checks above did not validate live competitor coverage or any actual seller offer.
 
-The gallery redesign was also checked at 1440, 390 and 360 pixels. The product finder handled an empty search, switched the pedestal to SONIC, and restored ROBOT. On mobile the manager drawer opened from the bottom bar and closed with Escape.
+Chrome loaded the illustrated catalog at 360, 375, 390, 768, 1024 and 1440 pixels. Selecting SONIC changed the product artwork and the 3D pedestal. Pressing Enter on the artwork opened the matching stock record, and Escape returned focus to the artwork. The daily sales table showed seven rows for the reporting period. On mobile the manager drawer opened from the bottom bar and closed with Escape.
 
 ![Current dashboard](screenshots/overview-1440.png)
 
 ![Desktop shop](screenshots/shop-3d.png)
 
-The published dashboard displayed the earlier assistant answer in the shared chat. The live check also opened the guide, the advertising plan, and the case list.
+This screenshot records the earlier public-chat test before the illustrated catalog update.
 
 ![Conversation on the redesigned public demo](screenshots/hosted-demo.png)
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Boxes, ClipboardCheck, PackagePlus, Search, Truck } from 'lucide-react';
 import { Empty, Metric, Notice } from './components';
+import { ProductPicture } from './ProductPicture';
 import { baht, count, date, stages, statusLabel, time, type Command, type Order, type ShopState, type Variant } from './model';
 
 const movementNames: Record<string,string> = { pos_sale:'ขายที่หน้าร้าน', accept_order:'จองจากออเดอร์ออนไลน์', pickup:'ขนส่งรับพัสดุ', cancel_order:'ยกเลิกออเดอร์' };
@@ -11,10 +12,13 @@ export function ProductFacts({ variant, state, action }: { variant: Variant; sta
   const [quantity, setQuantity] = useState(1);
   const [failSync, setFailSync] = useState(false);
   return <>
-    <div className="metric-grid three">
-      <Metric label="อยู่ที่ร้าน" value={count(variant.physical)} detail="ชิ้น"/>
-      <Metric label="จองแล้ว" value={count(variant.reserved)} detail="ชิ้น"/>
-      <Metric label="เหลือขาย" value={count(variant.available)} detail="ชิ้น"/>
+    <div className="stock-summary">
+      <div className="stock-detail-image"><ProductPicture variant={variant}/></div>
+      <div className="metric-grid three">
+        <Metric label="อยู่ที่ร้าน" value={count(variant.physical)} detail="ชิ้น"/>
+        <Metric label="จองแล้ว" value={count(variant.reserved)} detail="ชิ้น"/>
+        <Metric label="เหลือขาย" value={count(variant.available)} detail="ชิ้น"/>
+      </div>
     </div>
     <dl className="fact-list">
       <div><dt>ราคาขาย</dt><dd>{baht(variant.price)}</dd></div>
@@ -40,11 +44,16 @@ export function ProductFacts({ variant, state, action }: { variant: Variant; sta
 export function Stock({ variants, open, state }: { variants: Variant[]; open: (variantId: string) => void; state: ShopState }) {
   const [query, setQuery] = useState('');
   const rows = variants.filter(variant => `${variant.productName} ${variant.name} ${variant.sellerSku}`.toLowerCase().includes(query.trim().toLowerCase()));
-  return <section className="panel">
+  return <section className="panel stock-catalog">
     <div className="section-head"><div><h2>สินค้าของร้าน</h2><p>{state.products.length} รายการ · {variants.length} รุ่น</p></div><Boxes size={22} className="subtle-icon"/></div>
     <label className="search"><Search size={17}/><input aria-label="ค้นหาสินค้า" placeholder="ค้นหาชื่อสินค้า รุ่น หรือ SKU" value={query} onChange={event => setQuery(event.target.value)}/></label>
     {rows.length ? <div className="table-scroll"><table><thead><tr><th>สินค้า</th><th>อยู่ที่ร้าน</th><th>จองแล้ว</th><th>เหลือขาย</th><th>สต็อกออนไลน์</th></tr></thead><tbody>
-      {rows.map(variant => <tr key={variant.id}><td><button className="text-btn table-name" onClick={() => open(variant.id)}>{variant.productName}<small>{variant.name ? `${variant.name} · ` : ''}{variant.sellerSku}</small></button></td>
+      {rows.map(variant => <tr key={variant.id}><td>
+        <button className="text-btn table-name stock-product" onClick={() => open(variant.id)}>
+          <span className="stock-catalog-image"><ProductPicture variant={variant}/></span>
+          <span><span className="stock-product-name">{variant.productName}</span><small>{variant.name ? `${variant.name} · ` : ''}{variant.sellerSku}</small></span>
+        </button>
+      </td>
         <td>{count(variant.physical)}</td><td>{count(variant.reserved)}</td><td><span className={variant.available <= 1 ? 'badge warm' : 'badge green'}>{count(variant.available)}</span></td>
         <td>{statusLabel(state.channelStock.find(stock => stock.variantId === variant.id)?.syncStatus ?? 'ยังไม่มีข้อมูล')}</td></tr>)}
     </tbody></table></div> : <Empty>ไม่มีสินค้าตรงกับคำค้น</Empty>}

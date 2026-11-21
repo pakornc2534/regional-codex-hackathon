@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { BoxGeometry, CylinderGeometry, DataTexture, LinearFilter, MeshStandardMaterial, RepeatWrapping, SphereGeometry, TorusGeometry } from 'three'
+import { BoxGeometry, CylinderGeometry, DataTexture, ExtrudeGeometry, LinearFilter, MeshStandardMaterial, RepeatWrapping, Shape, SphereGeometry, TorusGeometry } from 'three'
 import type { Position } from './scene-model'
 
 const box = new BoxGeometry(1, 1, 1)
@@ -42,42 +42,58 @@ const stoneGrain = grain(false)
 const timber = (color: string) => new MeshStandardMaterial({ color, map: timberGrain, roughness: .57 })
 const mineral = (color: string) => new MeshStandardMaterial({ color, map: stoneGrain, roughness: .77 })
 
+function perforatedEnamel() {
+  // One texture per rack finish keeps the pegboard holes off the draw-call budget.
+  const size = 96
+  const pixels = new Uint8Array(size * size * 4)
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const hole = Math.hypot(x % 12 - 6, y % 12 - 6) < 1.7
+      const i = 4 * (y * size + x)
+      const tone = hole ? 130 : 241
+      pixels.set([tone, tone, tone, 255], i)
+    }
+  }
+  const map = new DataTexture(pixels, size, size)
+  map.magFilter = map.minFilter = LinearFilter
+  map.needsUpdate = true
+  return new MeshStandardMaterial({ map, color: '#a8afb0', roughness: .78 })
+}
+
 export const materials = {
-  foundation: standard('#0e2729', .62),
-  edge: standard('#b6945f', .38, .32),
-  stone: mineral('#eee6ce'),
-  paleStone: mineral('#fff2d7'),
-  seam: standard('#b5ab94'),
-  clay: mineral('#c77e61'),
-  shadeClay: standard('#975942'),
-  plaster: standard('#114b4a'),
-  ivory: mineral('#edd9ae'),
-  archPanel: standard('#144440'),
-  wood: timber('#594134'),
-  paleWood: timber('#b38852'),
-  ebony: standard('#302d29'),
-  brass: standard('#bc9860', .37, .43),
-  gold: luminous('#ffca69', .76),
-  warmWhite: luminous('#ffe2a2', 1.12),
-  warmGlass: standard('#32665a', .42),
-  darkGreen: standard('#0d3533', .46),
-  teal: standard('#277566'),
-  screen: luminous('#153d3e', .55),
-  screenMint: luminous('#8dd4a3', .65),
-  screenGold: luminous('#dba464', .65),
-  paper: standard('#fff9e5'),
-  black: standard('#172a32'),
-  rubber: standard('#21252c', .88),
-  steel: standard('#72878a', .36, .29),
-  blue: standard('#315b9b', .38),
-  red: standard('#b74236', .46),
-  coral: standard('#d96556', .56),
-  rose: standard('#f0b1a5'),
-  moss: standard('#366d42'),
-  mint: standard('#96bf90'),
-  cream: standard('#f5deaa'),
-  carton: timber('#c59063'),
-  tape: standard('#e7c994'),
+  graphite: standard('#29353d', .58),
+  slate: standard('#556879', .52),
+  enamel: standard('#d5dcda', .58),
+  window: standard('#aac1c6', .39),
+  pegboard: perforatedEnamel(),
+  stone: mineral('#e0dbcc'),
+  paleStone: mineral('#eee9dc'),
+  seam: standard('#a7a8a1'),
+  clay: mineral('#ca947c'),
+  shadeClay: standard('#a46951'),
+  wood: timber('#6e5344'),
+  paleWood: timber('#c2a680'),
+  ebony: standard('#383b39'),
+  brass: standard('#bc9760', .37, .33),
+  gold: luminous('#f7c46d', .40),
+  warmWhite: luminous('#fff3d9', .6),
+  screen: luminous('#344d57', .32),
+  screenMint: luminous('#9ed9bd', .65),
+  screenGold: luminous('#ecbc81', .53),
+  paper: standard('#f9f4e8'),
+  black: standard('#263441'),
+  rubber: standard('#363a40', .85),
+  steel: standard('#7b8b94', .48, .25),
+  blue: standard('#465f80', .43),
+  red: standard('#c44834', .49),
+  coral: standard('#d76b59', .55),
+  teal: standard('#537a79'),
+  rose: standard('#e8aaa4'),
+  moss: standard('#426d52'),
+  mint: standard('#9aba93'),
+  cream: standard('#e5d5ae'),
+  carton: timber('#c49975'),
+  tape: standard('#e9cc99'),
 }
 
 export type MaterialName = keyof typeof materials
@@ -119,39 +135,67 @@ export function Parcel({ at, size = [.45, .34, .39] }: { at: Position; size?: Po
   )
 }
 
+// Shared clipped-corner armour shells; the bevel catches the key light at phone scale.
+const shoulderProfile = new Shape()
+shoulderProfile.moveTo(-.51, -.30)
+shoulderProfile.lineTo(-.40, .26)
+shoulderProfile.lineTo(-.18, .49)
+shoulderProfile.lineTo(.36, .44)
+shoulderProfile.lineTo(.51, .21)
+shoulderProfile.lineTo(.45, -.39)
+shoulderProfile.lineTo(-.21, -.48)
+shoulderProfile.closePath()
+const shell = new ExtrudeGeometry(shoulderProfile, { depth: .84, bevelEnabled: true, bevelThickness: .06, bevelSize: .04, bevelSegments: 1 })
+shell.translate(0, 0, -.42)
+
+function Armor({ at, size, material, rotation }: SolidProps) {
+  return <mesh position={at} rotation={rotation} scale={size} geometry={shell} material={materials[material]} castShadow receiveShadow />
+}
+
 function Robot() {
-  return (
-    <>
-      <Block at={[0, .61, 0]} size={[.39, .25, .23]} material="paper" />
-      <Block at={[0, .59, .128]} size={[.33, .125, .034]} material="blue" />
-      <Block at={[0, .602, .154]} size={[.115, .072, .025]} material="gold" />
-      <Block at={[0, .422, .02]} size={[.295, .111, .22]} material="black" />
-      <Block at={[0, .395, .12]} size={[.23, .065, .048]} material="cream" />
-      <Block at={[0, .74, -.13]} size={[.295, .29, .16]} material="blue" />
-      <Block at={[0, .85, .007]} size={[.26, .215, .21]} material="paper" />
-      <Block at={[0, .838, .119]} size={[.205, .071, .035]} material="black" />
-      <Block at={[-.056, .84, .14]} size={[.052, .029, .013]} material="screenMint" />
-      <Block at={[.056, .84, .14]} size={[.052, .029, .013]} material="screenMint" />
-      <Block at={[0, .97, .051]} size={[.057, .052, .076]} material="red" />
-      <Block at={[0, 1.033, .027]} size={[.255, .031, .036]} rotation={[0, 0, .19]} material="brass" />
-      {[1, -1].map(side => (
-        <group key={side}>
-          <Block at={[side * .122, .993, .078]} size={[.025, .20, .037]} rotation={[0, 0, -side * .71]} material="warmWhite" />
-          <Block at={[side * .164, .64, -.162]} size={[.10, .33, .087]} rotation={[-.26, 0, -side * .38]} material="blue" />
-          <Block at={[side * .286, .665, -.007]} size={[.20, .086, .25]} rotation={[0, 0, -side * .12]} material="blue" />
-          <Block at={[side * .327, .37, .033]} size={[.119, .127, .147]} material="paper" />
-          <Block at={[side * .337, .278, .051]} size={[.087, .073, .10]} material="black" />
-          <Block at={[side * .26, .638, -.01]} size={[.151, .17, .24]} rotation={[0, 0, side * .16]} material="paper" />
-          <Block at={[side * .30, .456, .004]} size={[.095, .244, .125]} rotation={[0, 0, side * .14]} material="steel" />
-          <Block at={[side * .32, .541, .078]} size={[.084, .105, .03]} material="red" />
-          <Block at={[side * .113, .283, 0]} size={[.142, .327, .153]} rotation={[0, 0, side * .11]} material="paper" />
-          <Block at={[side * .137, .282, .078]} size={[.122, .076, .033]} material="steel" />
-          <Block at={[side * .159, .088, .04]} size={[.186, .105, .27]} material="red" />
-          <Block at={[side * .159, .031, .048]} size={[.192, .041, .28]} material="black" />
+  return <group rotation={[0, -.06, .027]}>
+    <Block at={[0, .57, -.025]} size={[.34, .30, .225]} material="graphite"/>
+    <Armor at={[0, .636, .05]} size={[.405, .218, .245]} material="blue" rotation={[.064, 0, 0]}/>
+    <Armor at={[.09, .677, .167]} size={[.154, .076, .049]} material="paper" rotation={[0, 0, -.12]}/>
+    <Armor at={[-.09, .677, .167]} size={[.154, .076, .049]} material="paper" rotation={[0, 0, .12]}/>
+    <Block at={[0, .609, .176]} size={[.096, .048, .036]} material="red"/>
+    <Armor at={[0, .439, .010]} size={[.27, .114, .226]} material="enamel"/>
+    <Block at={[0, .422, .136]} size={[.090, .073, .031]} material="red"/>
+    <Round at={[0, .762, .011]} size={[.071, .076, .071]} material="graphite"/>
+    <Armor at={[0, .869, .024]} size={[.233, .207, .222]} material="paper" rotation={[.12, 0, -.06]}/>
+    <Block at={[0, .861, .150]} size={[.19, .068, .022]} material="graphite" rotation={[0, 0, -.045]}/>
+    <Block at={[.013, .866, .165]} size={[.138, .022, .014]} material="screenMint" rotation={[0, 0, -.045]}/>
+    <Armor at={[0, .820, .149]} size={[.067, .059, .042]} material="red"/>
+    <Block at={[-.106, .964, .026]} size={[.030, .175, .043]} material="blue" rotation={[0, 0, .22]}/>
+    <Block at={[-.126, 1.045, .026]} size={[.032, .042, .045]} material="red" rotation={[0, 0, .22]}/>
+    <Armor at={[0, .658, -.199]} size={[.264, .315, .18]} material="blue"/>
+    {[-1, 1].map(side => <group key={side}>
+      <Round at={[side * .159, .624, -.187]} size={[.061, .274, .069]} material="steel"/>
+      <Round at={[side * .159, .490, -.187]} size={[.070, .045, .076]} material="graphite"/>
+      <group position={[side * .248, .669, .00]} rotation={[side < 0 ? -.24 : -.03, 0, side * .15]}>
+        <Round size={[.078, .11, .075]} material="graphite" rotation={[0, 0, Math.PI/2]}/>
+        <Armor at={[side * .025, .022, .008]} size={[.230, .158, .235]} material={side < 0 ? 'red' : 'paper'}/>
+        <Block at={[side * .049, -.014, .121]} size={[.143, .029, .017]} material={side < 0 ? 'paper' : 'red'}/>
+        <Armor at={[0, -.114, .001]} size={[.111, .143, .139]} material="slate"/>
+        <Round at={[0, -.191, .023]} size={[.073, .132, .073]} material="graphite" rotation={[0,0,Math.PI/2]}/>
+        <group position={[0,-.206,.031]} rotation={[side < 0 ? -.48 : -.12, 0, 0]}>
+          <Armor at={[side * .012, -.073, .010]} size={[.146, .185, .176]} material="paper"/>
+          <Block at={[side * .015, -.045, .104]} size={[.080, .044, .017]} material="blue"/>
+          <Armor at={[0, -.193, .024]} size={[.104, .090, .144]} material="graphite"/>
         </group>
-      ))}
-    </>
-  )
+      </group>
+      <group position={[side * .094, .406, side < 0 ? -.025 : .041]} rotation={[side < 0 ? .05 : -.10, 0, side * .092]}>
+        <Armor at={[0, -.108, 0]} size={[.128, .188, .157]} material="paper"/>
+        <Round at={[0, -.204, .006]} size={[.071, .139, .071]} material="graphite" rotation={[0,0,Math.PI/2]}/>
+        <Armor at={[0, -.201, .081]} size={[.141, .091, .057]} material="blue" rotation={[-.21,0,0]}/>
+        <Armor at={[0, -.286, .001]} size={[.145, .188, .163]} material="enamel" rotation={[-.04,0,0]}/>
+        <Block at={[0, -.278, .084]} size={[.071, .090, .023]} material="paper"/>
+        <Armor at={[0, -.252, -.101]} size={[.123,.159,.097]} material="blue" rotation={[-.18,0,0]}/>
+        <Armor at={[0, -.355, .0565]} size={[.153, .080, .258]} material="red"/>
+        <Block at={[0, -.395, .047]} size={[.158, .030, .265]} material="graphite"/>
+      </group>
+    </group>)}
+  </group>
 }
 
 function ForestFigure({ blue = false }: { blue?: boolean }) {

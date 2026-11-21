@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { ArrowUpRight, Boxes, Check, PackageCheck, Search, ShoppingBag, Wallet } from 'lucide-react';
+import { Check, ChevronDown, ScanSearch, Search } from 'lucide-react';
+import { ProductPicture } from './ProductPicture';
+import { ShopIcon } from './ShopIcon';
 import { baht, count, type ShopState, type Variant } from './model';
 
 function SevenDays({ values }: { values: number[] }) {
@@ -16,21 +18,40 @@ export function OverviewMetrics({ state, onSales, onOrders, onPacking }: {
   const days = metrics.daily.filter(day => period && day.date >= period.from && day.date <= period.to);
   return <div className="overview-metrics" aria-label="ตัวเลขสรุปร้าน">
     <button className="kpi sales-kpi" onClick={onSales}>
-      <span className="kpi-label"><Wallet/>ยอดขาย 7 วัน<ArrowUpRight/></span>
+      <span className="kpi-label"><ShopIcon name="finance"/>ยอดขาย 7 วัน</span>
       <span className="kpi-data"><strong>{baht(metrics.sales7d)}</strong><SevenDays values={days.map(d => d.online + d.pos)}/></span>
       <small>รวมออนไลน์และหน้าร้าน</small>
     </button>
     <button className="kpi" onClick={onOrders}>
-      <span className="kpi-label"><ShoppingBag/>ออเดอร์ 7 วัน<ArrowUpRight/></span>
+      <span className="kpi-label"><ShopIcon name="orders"/>ออเดอร์ 7 วัน</span>
       <span className="kpi-data"><strong>{count(metrics.orders7d)}</strong><SevenDays values={days.map(d => d.orders)}/></span>
       <small>ชำระเงินแล้ว</small>
     </button>
     <button className="kpi packing-kpi" onClick={onPacking}>
-      <span className="kpi-label"><PackageCheck/>คิวแพ็ก<ArrowUpRight/></span>
+      <span className="kpi-label"><ShopIcon name="packing"/>คิวแพ็ก</span>
       <span className="kpi-data"><strong>{count(metrics.queueUnits)} <em>ชิ้น</em></strong></span>
       <small>จาก {count(metrics.queueOrders)} ออเดอร์</small>
     </button>
   </div>;
+}
+
+export function CatalogFeature({ variant, choose, showStock, plan }: {
+  variant: Variant; choose: () => void; showStock: () => void; plan: () => void;
+}) {
+  return <section className="catalog-feature" aria-label="สินค้าที่เลือก">
+    <button type="button" className="catalog-art" aria-label={`ดูรายละเอียด ${variant.productName} ${variant.sellerSku}`} title="ดูรายละเอียดสินค้า" onClick={showStock}>
+      <ProductPicture variant={variant} featured/><span className="catalog-inspect" aria-hidden="true"><ScanSearch size={18}/></span>
+    </button>
+    <div className="catalog-copy">
+      <div className="catalog-index"><span>{variant.category}</span><button className="catalog-pick" onClick={choose}>เลือกสินค้า <ChevronDown size={16}/></button></div>
+      <h2>{variant.productName.split(/\s+/).map((word, index) => <span key={index}>{index > 0 && ' '}<span className="catalog-word">{word}</span></span>)}</h2>
+      <p className="catalog-edition">{variant.name} <span>{variant.sellerSku}</span></p>
+      <div className="catalog-values"><span className="catalog-price">{baht(variant.price)} <small>ต่อชิ้น</small></span>
+        <button onClick={showStock} title="ดูรายละเอียดสต็อกสินค้า"><ShopIcon name="stock" size={18}/>เหลือขาย {count(variant.available)} ชิ้น</button>
+      </div>
+      <button className="catalog-plan" onClick={plan}><ShopIcon name="campaign" size={20}/>ลองแผนยิงแอด</button>
+    </div>
+  </section>;
 }
 
 export function ProductFinder({ variants, selected, choose }: {variants: Variant[]; selected?: string; choose: (id: string) => void}) {
@@ -40,7 +61,7 @@ export function ProductFinder({ variants, selected, choose }: {variants: Variant
   return <div className="finder">
     <label className="finder-search"><Search size={19}/><input aria-label="ค้นหาสินค้าบนแท่น" placeholder="ค้นหาชื่อสินค้า รุ่น หรือ SKU" autoFocus value={query} onChange={e => setQuery(e.target.value)}/></label>
     <div className="finder-list">{found.map(item => <button key={item.id} onClick={() => choose(item.id)} aria-pressed={selected === item.id}>
-      <span className="finder-icon"><Boxes size={20}/></span>
+      <span className="finder-picture"><ProductPicture variant={item}/></span>
       <span><strong>{item.productName}</strong><small>{item.name} · {item.sellerSku}</small></span>
       <span className="finder-stock">{count(item.available)} ชิ้น</span>
       {selected === item.id && <Check size={16}/>}

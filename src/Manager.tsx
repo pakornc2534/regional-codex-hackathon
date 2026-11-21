@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowUp, AudioLines, BookOpen, ChevronRight, CirclePause, CirclePlay, History, Layers3, Megaphone, MessageCircle, MessagesSquare, PackageCheck, PencilLine, ShieldCheck, UserRound } from 'lucide-react';
+import { BookOpen, ChevronDown, History, Pause, PencilLine, Play, SendHorizontal, ShieldCheck, UserRound } from 'lucide-react';
+import { ShopIcon } from './ShopIcon';
 import './manager.css';
 import { Empty, Notice } from './components';
 import { baht, count, statusLabel, time, type Case, type Command, type ShopState, type Variant } from './model';
@@ -8,8 +9,19 @@ type Action = (command: Command) => Promise<boolean>;
 type Room = { name: string; title: string; caseId?: string; variantId?: string };
 
 function CaseMark({ type }: { type: Case['type'] }) {
-  const Icon = type === 'product' ? MessagesSquare : type === 'preparation' ? PackageCheck : Megaphone;
-  return <span className={`case-mark case-mark-${type}`} aria-hidden="true"><Icon size={18} strokeWidth={1.7}/></span>;
+  const name = type === 'product' ? 'inbox' : type === 'preparation' ? 'packing' : 'campaign';
+  return <span className="case-mark"><ShopIcon name={name} size={25}/></span>;
+}
+
+function needsDecision(item: Case) {
+  return ['open', 'proposed', 'awaiting_approval', 'stale'].includes(item.status);
+}
+
+function CaseStatus({ item }: { item: Case }) {
+  const urgent = item.priority === 'high' && needsDecision(item);
+  return <span className={urgent ? 'case-state urgent' : 'case-state'}>
+    {urgent && <strong>ด่วน </strong>}{statusLabel(item.status)}
+  </span>;
 }
 
 export function CaseList({ state, onOpen }: { state: ShopState; onOpen: (item: Case) => void }) {
@@ -17,8 +29,7 @@ export function CaseList({ state, onOpen }: { state: ShopState; onOpen: (item: C
     <div className="section-head"><div><h2>เคสที่ต้องติดตาม</h2></div><span className="queue-total">{count(state.cases.length)} เคส</span></div>
     {state.cases.length ? <div className="case-rows">{state.cases.map(item => <button key={item.id} className="case-row" onClick={() => onOpen(item)}>
       <CaseMark type={item.type}/><span className="case-row-copy"><strong>{item.title}</strong><small>{item.evidence.at(-1)}</small></span>
-      <span className={item.priority === 'high' && item.status !== 'verified' ? 'badge warm' : 'badge neutral'}>{statusLabel(item.status)}</span>
-      <ChevronRight size={16} aria-hidden="true"/>
+      <CaseStatus item={item}/>
     </button>)}</div> : <Empty>ยังไม่มีเคสของร้าน</Empty>}
   </section>;
 }
@@ -37,7 +48,7 @@ export function CaseDetail({ item, state, action, analyze, ask, openOrder, openI
   const { orderId, conversationId } = item.entityRefs;
   const policies = state.policies.filter(policy => policy.caseId === item.id || (policy.scope && typeof policy.scope === 'object' && 'caseId' in policy.scope && policy.scope.caseId === item.id));
   return <div className="case-detail">
-    <div className="choice-row"><span className="badge warm">{statusLabel(item.status)}</span><button className="secondary" onClick={ask}><MessageCircle size={15}/> คุยกับผู้จัดการเรื่องนี้</button>
+    <div className="choice-row"><CaseStatus item={item}/><button className="secondary" onClick={ask}><ShopIcon name="manager" size={18}/> คุยกับผู้จัดการเรื่องนี้</button>
       {orderId && <button className="secondary" onClick={() => openOrder(orderId)}>ดูออเดอร์</button>}
       {conversationId && <button className="secondary" onClick={() => openInbox(conversationId)}>ดูแชทลูกค้า</button>}
     </div>
@@ -55,7 +66,7 @@ export function CaseDetail({ item, state, action, analyze, ask, openOrder, openI
     {proposal && setting && <div className="option policy-choice">
       <h3>งานแบบนี้ครั้งหน้าให้ทำเองตามกฎ หรือถามทุกครั้ง?</h3>
       <p>กำหนดเงื่อนไขสำหรับเคสนี้ได้ที่นี่ คุณแก้กฎภายหลังได้</p>
-      {canAutomate && <div className="form-grid"><label className="field">สต็อกสูงสุดที่ให้ใช้กฎนี้<input type="number" value={maxStock} min="0" onChange={event => setMaxStock(Number(event.target.value))}/></label><label className="field">งบสูงสุดต่อวัน (บาท)<input type="number" min="0" value={maxBudget} disabled={!limitBudget} onChange={event => setMaxBudget(Number(event.target.value))}/><span className="check-row"><input type="checkbox" checked={limitBudget} onChange={event => setLimitBudget(event.target.checked)}/> จำกัดงบตามจำนวนนี้</span></label></div>}
+      {canAutomate && <div className="form-grid"><label className="field">สต็อกสูงสุดที่ให้ใช้กฎนี้<input type="number" value={maxStock} min="0" onChange={event => setMaxStock(Number(event.target.value))}/></label><div className="field"><label>งบสูงสุดต่อวัน (บาท)<input type="number" min="0" value={maxBudget} disabled={!limitBudget} onChange={event => setMaxBudget(Number(event.target.value))}/></label><label className="check-row"><input type="checkbox" checked={limitBudget} onChange={event => setLimitBudget(event.target.checked)}/> จำกัดงบตามจำนวนนี้</label></div></div>}
       <div className="choice-row"><button className="secondary" onClick={() => setSetting(false)}>ถามทุกครั้ง</button>
       {canAutomate && <button className="primary" onClick={() => void action({ type: 'set_policy', caseId: item.id, proposalId: proposal.id, optionId: chosen, enabled: true, maxStock, ...(limitBudget ? {maxDailyBudget:maxBudget} : {}) }).then(ok => { if (ok) setSetting(false); })}>เปิดใช้กฎนี้</button>}</div>
     </div>}
@@ -73,7 +84,7 @@ export function Inboxes({ state, action, conversationId, onSelect }: { state: Sh
   return <div className="stack inbox-workspace"><section className="panel">
     <div className="section-head"><h2>กล่องข้อความลูกค้า</h2><span className="queue-total">{count(state.conversations.length)} ห้อง</span></div>
     {conversation ? <>
-      <nav className="inbox-rooms" aria-label="เลือกห้องแชทลูกค้า">{state.conversations.map(room => <button key={room.id} aria-pressed={room.id === conversation.id} className={room.id === conversation.id ? 'active' : ''} onClick={() => { onSelect(room.id); setMessage(''); setReply(''); }}><MessageCircle size={16} aria-hidden="true"/>{room.title}</button>)}</nav>
+      <nav className="inbox-rooms" aria-label="เลือกห้องแชทลูกค้า">{state.conversations.map(room => <button key={room.id} aria-pressed={room.id === conversation.id} className={room.id === conversation.id ? 'active' : ''} onClick={() => { onSelect(room.id); setMessage(''); setReply(''); }}><ShopIcon name="inbox" size={20}/>{room.title}</button>)}</nav>
       <div className="section-head"><div><h3>{conversation.title}</h3><p>{conversation.owner === 'human' ? 'เจ้าของร้านรับช่วง' : 'ผู้จัดการ AI ดูแล'}</p></div>
       <button className="secondary" onClick={() => void action({ type: conversation.owner === 'human' ? 'resume_agent' : 'take_over', conversationId: conversation.id })}>{conversation.owner === 'human' ? 'ให้ผู้จัดการดูแลต่อ' : 'รับช่วงแชทนี้'}</button></div>
       <div className="customer-thread">{conversation.messages.map(item => <div className={item.author === 'customer' ? 'message incoming' : 'message outgoing'} key={item.id}><small>{item.author === 'customer' ? 'ลูกค้าจำลอง' : item.author === 'human' ? 'เจ้าของร้าน' : 'ผู้จัดการร้าน'} <time dateTime={item.at}>{time(item.at)}</time></small><p>{item.text}</p></div>)}</div>
@@ -154,7 +165,7 @@ function Conversation({ messages, shared, cancel, onEarlier }: {
         const owner = item.role === 'owner';
         const working = item.status === 'thinking' || item.status === 'queued';
         return <article className={owner ? 'desk-entry desk-owner' : 'desk-entry desk-manager'} key={item.id} data-message-id={item.id}>
-          <div className="desk-byline"><span>{owner ? <UserRound size={13}/> : <AudioLines size={14}/>} {owner ? (shared ? 'ผู้ใช้เดโม' : 'เจ้าของร้าน') : 'ผู้จัดการ AI'}</span><time dateTime={item.createdAt}>{time(item.createdAt)} น.</time></div>
+          <div className="desk-byline"><span>{owner ? <UserRound size={15} aria-hidden="true"/> : <ShopIcon name="manager" size={18}/>} {owner ? (shared ? 'ผู้ใช้เดโม' : 'เจ้าของร้าน') : 'ผู้จัดการ AI'}</span><time dateTime={item.createdAt}>{time(item.createdAt)} น.</time></div>
           {owner ? <p className="desk-owner-text">{item.text}</p> : item.text && <Answer text={item.text}/>}
           {working && <div className="desk-working"><span>{item.status === 'queued' ? 'รอตอบ' : 'กำลังตรวจข้อมูลร้าน…'}</span><button type="button" onClick={() => cancel(item.id)}>ยกเลิก</button></div>}
           {item.status === 'failed' && <span className="desk-failed">งานนี้ไม่สำเร็จ</span>}
@@ -201,7 +212,7 @@ export function Manager({ state, room, variant, draft, setDraft, send, reconnect
         ? ['ช่วยหาแหล่งข้อมูลพร้อมวันที่ตรวจสอบ', 'สินค้าที่เทียบกันต่างกันตรงไหน?']
         : variant ? [`ถ้ายิงแอด ${variant.sellerSku} ต้องขายเพิ่มกี่ชิ้น?`, 'วัสดุแพ็กพอกับแผนนี้ไหม?']
           : ['วันนี้มีเรื่องไหนต้องตัดสินใจ?', 'สินค้าอะไรใกล้หมด?'];
-  const pendingCases = state.cases.filter(item => ['open', 'proposed', 'awaiting_approval', 'stale'].includes(item.status));
+  const pendingCases = state.cases.filter(needsDecision);
   const showCases = room.name === 'overview' && pendingCases.length > 0 && onOpenCase;
   function usePrompt(prompt: string) {
     setDraft(prompt);
@@ -214,14 +225,14 @@ export function Manager({ state, room, variant, draft, setDraft, send, reconnect
   }
   return <aside className="desk-pane" aria-label="ผู้จัดการ AI">
     <header className="desk-head">
-      <span className="desk-avatar" aria-hidden="true"><AudioLines size={25} strokeWidth={1.8}/></span>
+      <span className="desk-avatar"><ShopIcon name="manager" size={40}/></span>
       <div><h2>ผู้จัดการ AI</h2><span className={connected && !state.managerPaused ? 'desk-status ready' : 'desk-status'}><i aria-hidden="true"/>{state.managerPaused ? 'พักงานอยู่' : connected ? 'เชื่อมต่อ Codex แล้ว' : 'ออฟไลน์'}</span></div>
-      <button type="button" className="desk-pause" disabled={busy} aria-label={state.managerPaused ? 'ให้ผู้จัดการทำงานต่อ' : 'พักผู้จัดการ'} title={state.managerPaused ? 'ให้ผู้จัดการทำงานต่อ' : 'พักผู้จัดการ'} onClick={() => void action({ type:'pause_manager', paused:!state.managerPaused })}>{state.managerPaused ? <CirclePlay size={19}/> : <CirclePause size={19}/>}</button>
+      <button type="button" className="desk-pause" disabled={busy} aria-label={state.managerPaused ? 'ให้ผู้จัดการทำงานต่อ' : 'พักผู้จัดการ'} title={state.managerPaused ? 'ให้ผู้จัดการทำงานต่อ' : 'พักผู้จัดการ'} onClick={() => void action({ type:'pause_manager', paused:!state.managerPaused })}>{state.managerPaused ? <Play size={17} aria-hidden="true"/> : <Pause size={17} aria-hidden="true"/>}</button>
     </header>
     <div className="desk-context">
-      <div className="desk-context-heading"><span><Layers3 size={14} aria-hidden="true"/> กำลังคุยเรื่อง</span><strong>{room.title}</strong></div>
+      <div className="desk-context-heading"><span>หัวข้อ</span><strong>{room.title}</strong></div>
       {room.name !== 'overview' && variant && <p className="desk-reference"><span>{variant.sellerSku}</span>{variant.productName}</p>}
-      {openCase && <button className="desk-link" onClick={openCase}>ดูข้อมูลเคส <ChevronRight size={15}/></button>}
+      {openCase && <button className="desk-link" onClick={openCase}>ดูข้อมูลเคส</button>}
     </div>
     <div className="desk-thread" aria-label="ประวัติสนทนา" tabIndex={-1} ref={history} onScroll={event => {
       const el = event.currentTarget;
@@ -231,19 +242,23 @@ export function Manager({ state, room, variant, draft, setDraft, send, reconnect
         follow.current = false;
         if (history.current) { history.current.scrollTop = 0; history.current.focus({preventScroll:true}); }
       }}/> : <div className="desk-start">
-        <h3>เริ่มคุยกับผู้จัดการ</h3>
+        <h3>เริ่มจากคำถาม</h3>
         <div className="desk-starters">{prompts.map(prompt => <button key={prompt} type="button" onClick={() => usePrompt(prompt)}><span>{prompt}</span><PencilLine size={16} aria-hidden="true"/></button>)}</div>
-        {showCases && <div className="desk-open-cases"><h3>เคสที่รอคุณเลือก</h3>{pendingCases.map(item => <button key={item.id} type="button" onClick={() => onOpenCase(item.id)}><CaseMark type={item.type}/><span>{item.title}</span><ChevronRight size={15}/></button>)}</div>}
+        {showCases && <details className="desk-open-cases">
+          <summary><ShopIcon name="cases" size={21}/><span>เคสที่รอคุณเลือก ({count(pendingCases.length)})</span><ChevronDown size={15} aria-hidden="true"/></summary>
+          {pendingCases.map(item => <button key={item.id} type="button" onClick={() => onOpenCase(item.id)}><CaseMark type={item.type}/><span>{item.title}</span></button>)}
+        </details>}
       </div>}
     </div>
     <div className="desk-compose">
       {!connected && <div className="disconnected"><span>{state.hosted?.stale ? 'รอเครื่องที่ดูแลร้านกลับมาออนไลน์' : 'ผู้จัดการยังตอบแชทไม่ได้'}</span><button className="text-btn" disabled={busy || !!state.hosted?.stale} onClick={reconnect}>เชื่อมต่ออีกครั้ง</button>{state.connection.detail && <details><summary>รายละเอียด</summary><p>{state.connection.detail}</p></details>}</div>}
-      {messages.length > 0 && <details className="desk-prompt-menu" key={room.name + (room.caseId ?? '')}><summary><BookOpen size={14}/> คำถามที่แนะนำ</summary><div className="desk-starters">{prompts.map(prompt => <button type="button" key={prompt} onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); usePrompt(prompt); }}><span>{prompt}</span><PencilLine size={14}/></button>)}</div></details>}
+      {messages.length > 0 && <details className="desk-prompt-menu" key={room.name + (room.caseId ?? '')}><summary><BookOpen size={16} aria-hidden="true"/> คำถามที่แนะนำ</summary><div className="desk-starters">{prompts.map(prompt => <button type="button" key={prompt} onClick={event => { event.currentTarget.closest('details')?.removeAttribute('open'); usePrompt(prompt); }}><span>{prompt}</span><PencilLine size={14}/></button>)}</div></details>}
       <form className="desk-form" onSubmit={event => { event.preventDefault(); submit(); }}>
-        <textarea ref={field} aria-label="ข้อความถึงผู้จัดการ AI" placeholder={state.managerPaused ? 'ผู้จัดการพักงานอยู่' : 'ถามเรื่องร้าน…'} value={draft} onChange={event => setDraft(event.target.value)} maxLength={4000} rows={2}
+        <label className="desk-draft-label" htmlFor="manager-draft">ข้อความถึงผู้จัดการ</label>
+        <textarea id="manager-draft" ref={field} aria-label="ข้อความถึงผู้จัดการ AI" placeholder={state.managerPaused ? 'ผู้จัดการพักงานอยู่' : 'ถามเรื่องร้าน…'} value={draft} onChange={event => setDraft(event.target.value)} maxLength={4000} rows={2}
           onKeyDown={event => {if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); submit(); }}}/>
-        <div className="desk-form-foot"><span title={state.hosted?.publicDemo ? 'ทุกคนที่เข้าเดโมเห็นแชทนี้' : 'สนทนากับผู้จัดการร้าน'}>{state.hosted?.publicDemo ? <MessagesSquare size={14}/> : <ShieldCheck size={14}/>} {state.hosted?.publicDemo ? 'แชทสาธารณะ' : 'แชทเจ้าของร้าน'}</span>
-          <button type="submit" aria-label="ส่งให้ผู้จัดการ AI" title="ส่งข้อความ" disabled={!allowed || !draft.trim()}><ArrowUp size={19}/></button>
+        <div className="desk-form-foot"><span title={state.hosted?.publicDemo ? 'ทุกคนที่เข้าเดโมเห็นแชทนี้' : 'สนทนากับผู้จัดการร้าน'}>{state.hosted?.publicDemo ? <ShopIcon name="inbox" size={16}/> : <ShieldCheck size={15} aria-hidden="true"/>} {state.hosted?.publicDemo ? 'แชทสาธารณะ' : 'แชทเจ้าของร้าน'}</span>
+          <button type="submit" aria-label="ส่งให้ผู้จัดการ AI" title="ส่งข้อความ" disabled={!allowed || !draft.trim()}><SendHorizontal size={17} aria-hidden="true"/> ส่ง</button>
         </div>
       </form>
     </div>

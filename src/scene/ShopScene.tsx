@@ -1,7 +1,7 @@
 import { Component, createContext, Suspense, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { MapPin } from 'lucide-react'
+import { ShopIcon } from '../ShopIcon'
 import { OrthographicCamera, Vector3, type Group } from 'three'
 import { Diorama, type LocationProps } from './Diorama'
 import { describeTarget, zoneLabels, workflowZones, type SceneTarget, type ShopSceneProps } from './scene-model'
@@ -133,7 +133,7 @@ function Camera({ resetKey, clearHover, active }: { resetKey: number; clearHover
   const camera = useThree(state => state.camera)
   const { width, height } = useThree(state => state.size)
   const invalidate = useThree(state => state.invalidate)
-  const baseZoom = Math.min(width / 19.5, height / 12.15)
+  const baseZoom = Math.min(width / 19.0, height / 12.15)
   const previousZoom = useRef(baseZoom)
 
   useEffect(() => {
@@ -272,12 +272,12 @@ export default function ShopScene(props: ShopSceneProps) {
             onPointerMissed={clearHover}
             fallback={fallback}
           >
-            <ambientLight intensity={.48} color="#e4e6de" />
-            <hemisphereLight args={['#fff4dc', '#465e5a', 1.05]} />
+            <ambientLight intensity={.54} color="#eef0f2" />
+            <hemisphereLight args={['#f6f6f4', '#77858b', .99]} />
             <directionalLight
-              position={[-2, 11, 5]}
-              color="#ffdfb4"
-              intensity={2.55}
+              position={[2, 15, 6]}
+              color="#fff1db"
+              intensity={2.23}
               castShadow
               shadow-mapSize={[1024, 1024]}
               shadow-camera-left={-10}
@@ -288,12 +288,10 @@ export default function ShopScene(props: ShopSceneProps) {
               shadow-bias={-.0003}
               shadow-radius={3}
             />
-            <directionalLight position={[7, 4, 3]} intensity={.83} color="#bbdfe1" />
-            <pointLight position={[-3.3, 2.44, -2.87]} color="#ffc87a" intensity={13.5} distance={7.6} decay={2} />
-            <pointLight position={[2, 2.47, -2.99]} color="#ffc988" intensity={11.6} distance={7.0} decay={2} />
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -.79, 0]} receiveShadow>
+            <directionalLight position={[7, 4, 3]} intensity={.66} color="#c7d9ec" />
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -.727, 0]} receiveShadow>
               <planeGeometry args={[80, 80]} />
-              <shadowMaterial color="#0c2222" opacity={.24} depthWrite={false} />
+              <shadowMaterial color="#303943" opacity={.13} depthWrite={false} />
             </mesh>
             <LocationContext.Provider value={controls}>
               <Diorama variants={variants} selected={selected} shopName={props.shopName} location={Location} />
@@ -305,7 +303,7 @@ export default function ShopScene(props: ShopSceneProps) {
       </SceneBoundary>
       <button type="button" className="diorama-pins" aria-pressed={showLabels} disabled={!active}
         onClick={() => setShowLabels(value => !value)}>
-        <MapPin size={13} strokeWidth={1.8} aria-hidden="true" />{showLabels ? 'ซ่อนจุดทำงาน' : 'แสดงจุดทำงาน'}
+        <ShopIcon name="pin" size={17} />{showLabels ? 'ซ่อนจุดทำงาน' : 'แสดงจุดทำงาน'}
       </button>
       <div className="diorama-markers">
         {variants.slice(0, 13).map(variant => (

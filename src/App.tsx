@@ -1,28 +1,29 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Box, CalendarDays, PanelsTopLeft, BookOpen, Sparkles, Tags, BarChart3, Bot, Boxes, Calculator, ChevronDown, ChevronRight, ClipboardList, Compass, Database, LayoutDashboard, Maximize2, Menu, MessageSquare, Minimize2, Newspaper, Package, RotateCcw, Settings2, ShoppingBag, Store, Truck, Wallet, X } from 'lucide-react';
-import { OverviewMetrics, ProductFinder } from './Overview';
+import { CalendarDays, PanelsTopLeft, BookOpen, Calculator, ChevronRight, Maximize2, Menu, Minimize2, RotateCcw, Settings2, X } from 'lucide-react';
+import { ShopIcon } from './ShopIcon';
+import { CatalogFeature, OverviewMetrics, ProductFinder } from './Overview';
 import { Briefs, Competitors, Memory, Sales, SalesChart, Settings } from './Business';
 import { Dialog, Empty, Notice } from './components';
 import { CaseDetail, CaseList, Inboxes, Manager } from './Manager';
 import { Fulfillment, ProductFacts, Stock, Supplies } from './Operations';
 import { PlanDialog, PlanResults, usePlanEvaluation } from './Planner';
-import { baht, count, date, modes, post, problem, readStamp, readState, timestamp, type Command, type Mode, type PlanInputs, type ShopState, type Variant } from './model';
+import { baht, count, modes, post, problem, readStamp, readState, timestamp, type Command, type Mode, type PlanInputs, type ShopState, type Variant } from './model';
 import type { SceneZone } from './scene/ShopScene';
 const ShopScene = lazy(() => import('./scene/ShopScene'));
 
 const navigation = [
   { group: 'หน้าร้าน', items: [
-    { id: 'overview', title: 'ภาพรวม', icon: LayoutDashboard }, { id: 'scene', title: 'ร้าน 3D', icon: Store },
-    { id: 'cases', title: 'เคส', icon: ClipboardList }, { id: 'inbox', title: 'แชทลูกค้า', icon: MessageSquare },
+    { id: 'overview', title: 'ภาพรวม' }, { id: 'scene', title: 'ร้าน 3D' },
+    { id: 'cases', title: 'เคส' }, { id: 'inbox', title: 'แชทลูกค้า' },
   ] },
   { group: 'การดำเนินงาน', items: [
-    { id: 'stock', title: 'สต็อกกลาง', icon: Boxes }, { id: 'supplies', title: 'วัสดุแพ็ก', icon: Package },
-    { id: 'plan', title: 'ลองปรับแผน', icon: Calculator }, { id: 'orders', title: 'ส่งของและของคืน', icon: Truck },
-    { id: 'finance', title: 'การเงิน', icon: Wallet }, { id: 'insights', title: 'ผลการขายและสุขภาพบัญชี', icon: BarChart3 },
+    { id: 'stock', title: 'สต็อกกลาง' }, { id: 'supplies', title: 'วัสดุแพ็ก' },
+    { id: 'plan', title: 'ลองปรับแผน' }, { id: 'orders', title: 'ส่งของและของคืน' },
+    { id: 'finance', title: 'การเงิน' }, { id: 'insights', title: 'ผลการขายและสุขภาพบัญชี' },
   ] },
   { group: 'ข้อมูลและการตั้งค่า', items: [
-    { id: 'settings', title: 'จัดการร้าน', icon: Settings2 }, { id: 'briefs', title: 'บรีฟข่าว', icon: Newspaper },
-    { id: 'research', title: 'สินค้าและคู่แข่ง', icon: Compass }, { id: 'memory', title: 'ความจำและกฎของร้าน', icon: Database },
+    { id: 'settings', title: 'จัดการร้าน' }, { id: 'briefs', title: 'บรีฟข่าว' },
+    { id: 'research', title: 'สินค้าและคู่แข่ง' }, { id: 'memory', title: 'ความจำและกฎของร้าน' },
   ] },
 ] as const;
 type Page = typeof navigation[number]['items'][number]['id'];
@@ -266,7 +267,7 @@ export default function App() {
   }
 
   if (!state) {
-    return <div className="boot"><div className="brand-glyph"><ShoppingBag size={27}/></div><h1>ร้านเรา</h1>
+    return <div className="boot"><div className="brand-glyph"><ShopIcon name="storemark" size={36}/></div><h1>ร้านเรา</h1>
       {loadError ? <><Notice error>{loadError}</Notice><button className="primary" onClick={() => void refresh()}>ลองเชื่อมต่อร้านอีกครั้ง</button></> : <p role="status">กำลังเปิดร้านจำลอง…</p>}
     </div>;
   }
@@ -295,21 +296,12 @@ export default function App() {
     {page === 'scene' && selected && <div className="choice-row"><button className="secondary" onClick={() => open('product', selected.id)}>เปิดรายละเอียด {selected.sellerSku}</button></div>}
     {planButtons}
   </ProductSelector>;
-  const spotlight = page === 'overview' && sceneMode === '3d' && !fullscreen && selected;
-  const scene = <section className={fullscreen ? 'scene-card scene-fullscreen' : spotlight ? 'scene-card scene-showcase' : 'scene-card'} aria-label="แผนผังร้าน">
-    <div className="scene-head"><div className="scene-name"><Box size={19}/><h2>{page === 'overview' && sceneMode === '3d' ? 'ร้านของสะสม 3D' : 'แผนผังร้าน'}</h2></div>
+  const scene = <section className={fullscreen ? 'scene-card scene-fullscreen' : 'scene-card'} aria-label="แผนผังร้าน">
+    <div className="scene-head"><div className="scene-name"><ShopIcon name="scene" size={23}/><h2>{page === 'overview' && sceneMode === '3d' ? 'ร้านของสะสม 3D' : 'แผนผังร้าน'}</h2></div>
       <div className="scene-tools"><div className="segmented" aria-label="มุมมองร้าน"><button className={sceneMode === '3d' ? 'active' : ''} aria-pressed={sceneMode === '3d'} onClick={() => setSceneMode('3d')}>3D</button><button className={sceneMode === '2d' ? 'active' : ''} aria-pressed={sceneMode === '2d'} onClick={() => setSceneMode('2d')}>2D</button></div>
       <button className="icon-btn scene-tool" title="คืนมุมกล้อง" aria-label="คืนมุมกล้อง" disabled={sceneMode === '2d'} onClick={() => setResetKey(value => value + 1)}><RotateCcw size={16}/></button>
       <button className="icon-btn scene-tool" title={fullscreen ? 'ออกจากเต็มจอ' : 'ดูเต็มจอ'} aria-label={fullscreen ? 'ออกจากเต็มจอ' : 'ดูเต็มจอ'} onClick={() => setFullscreen(value => !value)}>{fullscreen ? <Minimize2 size={17}/> : <Maximize2 size={17}/>}</button></div>
     </div>
-    {spotlight && <div className="showpiece">
-      <button className="change-piece" onClick={() => setLayer({kind:'selector'})}><Tags size={15}/> เลือกสินค้า <ChevronDown size={14}/></button>
-      <h3>{spotlight.productName.split(/\s+/).map((word, index) =>
-        <span key={index}>{index > 0 && ' '}<span className="piece-word">{word}</span></span>)}</h3>
-      <p>{[spotlight.name, spotlight.sellerSku].filter(Boolean).join(' · ')}</p>
-      <div className="piece-price">{baht(spotlight.price)}<span>ต่อชิ้น</span></div>
-      <button className="piece-plan" onClick={() => setMode('ads')}><Calculator size={17}/> ลองแผนยิงแอด</button>
-    </div>}
     <div className={sceneMode === '2d' ? 'stage stage-flat' : 'stage'}>
       {sceneMode === '3d' ? <Suspense fallback={<div className="stage-loading" role="status">กำลังจัดชั้นสินค้า…</div>}>
         <ShopScene shopName={state.shop.name} variants={sceneVariants} selectedVariantId={selected?.id} labels={sceneLabels} resetKey={resetKey} fullScreen={fullscreen} active={!layer && !mode} onOpen={open}/>
@@ -318,7 +310,7 @@ export default function App() {
         return <button key={key} onClick={() => open(key, key === 'product' ? selected?.id : undefined)}><strong>{label.title}</strong><small>{label.detail}</small><ChevronRight size={18}/></button>;
       })}</div>}
     </div>
-    <div className="scene-caption"><span>{sceneMode === '3d' ? 'ลากเพื่อหมุนร้าน · แตะจุดเพื่อดูงาน' : 'เลือกจุดทำงาน'}</span>{selected && <button onClick={() => open('product', selected.id)}><Package size={15}/><span>{selected.sellerSku} · เหลือขาย {count(selected.available)} ชิ้น</span><ChevronRight size={16}/></button>}</div>
+    <div className="scene-caption"><span>{sceneMode === '3d' ? 'ลากเพื่อหมุนร้าน · แตะจุดเพื่อดูงาน' : 'เลือกจุดทำงาน'}</span>{selected && <button onClick={() => open('product', selected.id)}><ShopIcon name="stock" size={17}/><span>{selected.sellerSku} · เหลือขาย {count(selected.available)} ชิ้น</span><ChevronRight size={16}/></button>}</div>
   </section>;
   const resetShop = () => setLayer({ kind: 'reset' });
   const results = <PlanResults evaluation={evaluation} unavailable={unavailable} onSave={() => { if (inputs) void action({type: 'save_plan', plan: inputs}); }}
@@ -329,16 +321,14 @@ export default function App() {
   let content;
   switch (page) {
     case 'overview': content = <>
-      {scene}
+      <OverviewMetrics state={state} onSales={() => go('finance')} onOrders={() => go('insights')} onPacking={() => { setOrderStage('picking'); go('orders'); }}/>
+      {selected && <CatalogFeature variant={selected} choose={() => setLayer({kind:'selector'})} showStock={() => open('product', selected.id)} plan={() => setMode('ads')}/>}
       {inputs && results}
-      <section className="overview-report" aria-label="ผลการดำเนินงาน">
-        <div className="dashboard-section-head"><h2>ตัวเลขของร้าน</h2>{metrics.period && <span>{date(metrics.period.from)} – {date(metrics.period.to)}</span>}</div>
-        <OverviewMetrics state={state} onSales={() => go('finance')} onOrders={() => go('insights')} onPacking={() => { setOrderStage('picking'); go('orders'); }}/>
-      </section>
       <div className="dashboard-lower">
         <CaseList state={state} onOpen={item => openCase(item.id)}/>
-        <section className="panel dashboard-sales"><div className="section-head"><h2>ยอดขายรายวัน</h2><button className="text-btn" onClick={() => go('insights')}>ดูรายงาน</button></div><SalesChart state={state} from={metrics.period?.from} to={metrics.period?.to}/></section>
+        {scene}
       </div>
+      <section className="panel dashboard-sales"><div className="section-head"><h2>ยอดขายรายวัน</h2><button className="text-btn" onClick={() => go('insights')}>ดูรายงาน</button></div><SalesChart state={state} from={metrics.period?.from} to={metrics.period?.to}/></section>
     </>; break;
     case 'scene': content = <>{scene}<section className="panel"><h2>เลือกสินค้าบนชั้น</h2>{productSelector}</section>{inputs && results}</>; break;
     case 'cases': content = <CaseList state={state} onOpen={item => openCase(item.id)}/>; break;
@@ -364,27 +354,27 @@ export default function App() {
   }
 
   return <div className="app-shell">
-    <header className="mobile-bar"><button className="icon-btn" aria-label="เปิดเมนูร้าน" onClick={() => setMobile(mobile === 'menu' ? undefined : 'menu')}><Menu size={21}/></button><button className="mobile-brand" onClick={() => go('overview')}><ShoppingBag size={18}/> ร้านเรา</button><button className="icon-btn" aria-label="เปิดผู้จัดการ AI" onClick={() => setMobile(mobile === 'manager' ? undefined : 'manager')}><Bot size={21}/></button></header>
+    <header className="mobile-bar"><button className="icon-btn" aria-label="เปิดเมนูร้าน" onClick={() => setMobile(mobile === 'menu' ? undefined : 'menu')}><Menu size={21}/></button><button className="mobile-brand" onClick={() => go('overview')}><ShopIcon name="storemark" size={29}/> ร้านเรา</button><button className="icon-btn" aria-label="เปิดผู้จัดการ AI" onClick={() => setMobile(mobile === 'manager' ? undefined : 'manager')}><ShopIcon name="manager" size={25}/></button></header>
     {mobile && <button className="mobile-scrim" aria-label="ปิดแผง" onClick={() => setMobile(undefined)}/>}
     <aside className={mobile === 'menu' ? 'sidebar open' : 'sidebar'} role={mobile === 'menu' ? 'dialog' : undefined} aria-modal={mobile === 'menu' || undefined} aria-label="เมนูร้าน">
-      <button className="brand" onClick={() => go('overview')}><span className="brand-glyph"><Store size={25} strokeWidth={1.8}/></span><span><strong>ร้านเรา</strong></span></button>
-      <button className="shop-card" onClick={() => go('settings')}><span className="shop-avatar"><Boxes size={21}/></span><span><strong>{state.shop.name}</strong><small>ร้านของสะสมจำลอง</small></span><Settings2 size={15}/></button>
-      <nav aria-label="เมนูร้าน">{navigation.map(group => <div className="nav-group" key={group.group}><span>{group.group}</span>{group.items.map(({ id, title, icon: Icon }) => <button key={id} className={page === id ? 'nav-item active' : 'nav-item'} aria-current={page === id ? 'page' : undefined} onClick={() => go(id)}><Icon size={17}/><span>{title}</span>{id === 'cases' && awaiting > 0 && <small>{awaiting}</small>}</button>)}</div>)}</nav>
+      <button className="brand" onClick={() => go('overview')}><span className="brand-glyph"><ShopIcon name="storemark" size={43}/></span><span><strong>ร้านเรา</strong></span></button>
+      <button className="shop-card" onClick={() => go('settings')}><span className="shop-avatar"><ShopIcon name="stock" size={26}/></span><span><strong>{state.shop.name}</strong><small>ร้านของสะสมจำลอง</small></span><Settings2 size={15}/></button>
+      <nav aria-label="เมนูร้าน">{navigation.map(group => <div className="nav-group" key={group.group}><span>{group.group}</span>{group.items.map(({ id, title }) => <button key={id} className={page === id ? 'nav-item active' : 'nav-item'} aria-current={page === id ? 'page' : undefined} onClick={() => go(id)}><ShopIcon name={id} size={21}/><span>{title}</span>{id === 'cases' && awaiting > 0 && <small>{awaiting}</small>}</button>)}</div>)}</nav>
       <a className="sidebar-bottom" href={import.meta.env.DEV ? '/docs/guide/' : '/guide/'} target="_blank" rel="noopener noreferrer"><BookOpen size={17}/> คู่มือเดโม</a>
     </aside>
     <main className="workspace" inert={mobile ? true : undefined}>
-      <div className="workspace-top"><span><Store size={16}/> {state.shop.name} <ChevronRight size={13}/> {titles[page]}</span><time dateTime={state.clock} title="เวลาร้านจำลอง"><CalendarDays size={15}/> {timestamp(state.clock)}</time></div>
-      <div className="page-heading"><div><h1>{titles[page]}</h1>{page !== 'overview' && <p>{descriptions[page]}</p>}</div>{page === 'overview' && <button className="case-jump" onClick={() => go('cases')}><ClipboardList size={17}/> งานรอตัดสินใจ <b>{count(awaiting)}</b></button>}</div>
+      <div className="workspace-top"><span><ShopIcon name="storemark" size={19}/> {state.shop.name} <ChevronRight size={13}/> {titles[page]}</span><time dateTime={state.clock} title="เวลาร้านจำลอง"><CalendarDays size={15}/> {timestamp(state.clock)}</time></div>
+      <div className="page-heading"><div><h1>{titles[page]}</h1>{page !== 'overview' && <p>{descriptions[page]}</p>}</div>{page === 'overview' && <button className="case-jump" onClick={() => go('cases')}><ShopIcon name="cases" size={19}/> งานรอตัดสินใจ <b>{count(awaiting)}</b></button>}</div>
       {state.hosted?.publicDemo && <div className="public-notice"><span aria-hidden="true"><PanelsTopLeft size={16}/></span><p>เดโมสาธารณะ ทุกคนเห็นและแก้ข้อมูลร้านจำลองร่วมกัน กรุณาอย่ากรอกข้อมูลส่วนตัว</p></div>}
       {(state.hosted?.stale || loadError) && <Notice error>{loadError || 'ขาดการเชื่อมต่อกับร้าน กำลังแสดงข้อมูลล่าสุด'}</Notice>}
       {!layer && commandError && <Notice error>{commandError}</Notice>}{!layer && feedback && <p className="feedback" role="status">{feedback}</p>}
       <div className="workspace-content">{content}</div>
     </main>
     <div className="mobile-tabs" role="group" aria-label="ทางลัด">
-      <button aria-current={page === 'overview' ? 'page' : undefined} onClick={() => go('overview')}><LayoutDashboard/>ภาพรวม</button>
-      <button aria-current={page === 'scene' ? 'page' : undefined} onClick={() => go('scene')}><Box/>ร้าน 3D</button>
-      <button aria-current={page === 'cases' ? 'page' : undefined} onClick={() => go('cases')}><ClipboardList/>งานรอตัดสินใจ</button>
-      <button onClick={() => setMobile('manager')}><Sparkles/>ผู้จัดการ AI</button>
+      <button aria-current={page === 'overview' ? 'page' : undefined} onClick={() => go('overview')}><ShopIcon name="overview"/>ภาพรวม</button>
+      <button aria-current={page === 'scene' ? 'page' : undefined} onClick={() => go('scene')}><ShopIcon name="scene"/>ร้าน 3D</button>
+      <button aria-current={page === 'cases' ? 'page' : undefined} onClick={() => go('cases')}><ShopIcon name="cases"/>เคส</button>
+      <button onClick={() => setMobile('manager')}><ShopIcon name="manager"/>ผู้จัดการ AI</button>
     </div>
     <div role={mobile === 'manager' ? 'dialog' : undefined} aria-modal={mobile === 'manager' || undefined} aria-label="ผู้จัดการ AI" className={mobile === 'manager' ? 'manager-slot open' : 'manager-slot'}>{mobile === 'manager' && <button className="manager-close icon-btn" aria-label="ปิดผู้จัดการ" onClick={() => setMobile(undefined)}><X size={18}/></button>}
       <Manager onOpenCase={openCase} state={state} room={room} variant={variants.find(item => item.id === room.variantId)} openCase={roomCaseData ? () => openCase(roomCaseData.id) : undefined} draft={draft} setDraft={setDraft} send={send} cancel={jobId => void invoke('/api/chat/cancel', {jobId,runId:state.runId})}

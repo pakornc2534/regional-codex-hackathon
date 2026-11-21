@@ -1,13 +1,13 @@
 .plan-results, .plan-form, .dialog:has(.plan-form) {
-  --plan-pine: #174537;
-  --plan-cream: #fffdf5;
-  --plan-pale: #eaf0e6;
-  --plan-gold: #dec27f;
-  --plan-fog: #c5d5c8;
+  --plan-pine: #253744;
+  --plan-cream: #fffefa;
+  --plan-pale: #edf0ef;
+  --plan-gold: #f3b59b;
+  --plan-fog: #d4dddf;
   --plan-amber-ink: #80592d;
-  --plan-border: #d8ded3;
+  --plan-border: #d1d6d7;
 }
-.dialog:has(.plan-form) {width:min(640px, calc(100% - 24px)); max-height:min(92dvh,850px); border-color:var(--plan-border); border-radius:20px;}
+.dialog:has(.plan-form) {width:min(640px, calc(100% - 24px)); max-height:min(92dvh,850px); border-color:var(--plan-border); border-radius:6px;}
 .dialog:has(.plan-form) .dialog-head {background:var(--plan-pine); color:var(--plan-cream); padding:21px clamp(18px,3vw,30px);}
 .dialog:has(.plan-form) .dialog-head h2 {font-size:clamp(22px,3vw,29px); line-height:1.35;}
 .dialog:has(.plan-form) .dialog-head p {color:var(--plan-fog);font-size:13px; margin-top:3px;}

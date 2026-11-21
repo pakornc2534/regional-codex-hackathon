@@ -1,20 +1,19 @@
 .diorama {
-  --diorama-backdrop: #153532;
-  --diorama-halo: #52756c;
-  --diorama-ink: #f6edd9;
-  --diorama-ink-soft: #e2e5d6;
-  --diorama-label: #102e2aea;
-  --diorama-boundary: #d9bb8061;
-  --diorama-hot: #f0b870;
-  --diorama-hot-ring: #f0b8703b;
-  --diorama-hot-shadow: #17252373;
+  --diorama-backdrop: #e8ecec;
+  --diorama-ink: #fff9f0;
+  --diorama-ink-soft: #eef0ed;
+  --diorama-label: #26323cf5;
+  --diorama-boundary: #7e8d93;
+  --diorama-hot: #ff8a68;
+  --diorama-hot-ring: #ff8a683b;
+  --diorama-hot-shadow: #232d3361;
   --diorama-font: inherit;
   position: relative;
   isolation: isolate;
   width: 100%;
   height: 100%;
   min-height: 0;
-  background: radial-gradient(ellipse at 49% 39%, var(--diorama-halo), var(--diorama-backdrop) 83%);
+  background: var(--diorama-backdrop);
   color: var(--diorama-ink);
   font-family: var(--diorama-font);
   overflow: clip;
@@ -28,12 +27,13 @@
   align-items: center;
   gap: 5px;
   padding: 5px 8px;
-  border: 1px solid #e6e6ce4d;
+  border: 1px solid #8d9a9f;
   border-radius: 6px;
-  background: #102d29d9;
-  color: #f0f2e9;
+  background: #f8f8f4f5;
+  color: #283741;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
+  min-height: 40px;
   line-height: 1.45;
   cursor: pointer;
 }
@@ -172,9 +172,10 @@
   padding: 24px;
 }
 
+.diorama-fallback, .diorama-loading { color: #2c3840; }
 .diorama-fallback p {
   font-size: 13px;
-  color: var(--diorama-ink-soft);
+  color: #49565c;
 }
 
 .diorama-fallback__zones {
@@ -185,11 +186,12 @@
 }
 
 @media (max-width: 600px) {
+  .diorama-pins { min-height: 44px; }
   .diorama-dot {
-    min-height: 17px;
+    min-height: 22px;
     gap: 4px;
     padding: 2px 5px;
-    font-size: 8px;
+    font-size: 10px;
   }
 
   .diorama-dot--shelf {

@@ -4,7 +4,7 @@ import {gzipSync} from 'node:zlib'
 await fs.mkdir('dist/client/guide',{recursive:true})
 await fs.copyFile('docs/guide/index.html','dist/client/guide/index.html')
 const names=await fs.readdir('dist/client',{recursive:true})
-const types={'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.woff2':'font/woff2','.json':'application/json'}
+const types={'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.woff2':'font/woff2','.json':'application/json'}
 const assets={}
 for(const item of names){const full=path.join('dist/client',item);if(!(await fs.stat(full)).isFile())continue
   assets['/'+item]=[types[path.extname(item)]||'application/octet-stream',gzipSync(await fs.readFile(full)).toString('base64')]}
