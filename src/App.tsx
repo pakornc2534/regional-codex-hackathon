@@ -128,6 +128,7 @@ export default function App() {
   const [layer, setLayer] = useState<Layer>();
   const [mode, setMode] = useState<Mode>();
   const [inputs, setInputs] = useState<PlanInputs>();
+  const planDrafts = useRef(new Map<string,PlanInputs>());
   const [sceneMode, setSceneMode] = useState<'3d' | '2d'>('3d');
   const [resetKey, setResetKey] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
@@ -333,7 +334,7 @@ export default function App() {
       <div className="workspace-content">{content}</div>
     </main>
     <div className={mobile === 'manager' ? 'manager-slot open' : 'manager-slot'}>{mobile === 'manager' && <button className="manager-close icon-btn" aria-label="ปิดผู้จัดการ" onClick={() => setMobile(undefined)}><X size={18}/></button>}
-      <Manager state={state} room={room} variant={variants.find(item => item.id === room.variantId)} draft={draft} setDraft={setDraft} send={send} cancel={jobId => void invoke('/api/chat/cancel', {jobId,runId:state.runId})}
+      <Manager state={state} room={room} variant={variants.find(item => item.id === room.variantId)} openCase={roomCaseData ? () => openCase(roomCaseData.id) : undefined} draft={draft} setDraft={setDraft} send={send} cancel={jobId => void invoke('/api/chat/cancel', {jobId,runId:state.runId})}
         reconnect={() => void invoke('/api/reconnect', {}, 'ตรวจการเชื่อมต่อแล้ว')} action={action} busy={unavailable}/>
     </div>
     {layer?.kind === 'zone' && <Dialog title={layer.zone === 'product' ? layerVariant?.productName ?? zones.product.title : zones[layer.zone].title}
@@ -352,9 +353,10 @@ export default function App() {
     {layer?.kind === 'reset' && <Dialog title="เริ่มรอบทดลองใหม่" onClose={() => setLayer(undefined)}>
       <p>ระบบจะเก็บรอบปัจจุบันไว้ แล้วเปิดร้านใหม่ด้วยข้อมูลเริ่มต้น</p>
       {commandError && <Notice error>{commandError}</Notice>}
-      <div className="dialog-actions"><button className="secondary" onClick={() => setLayer(undefined)}>ยกเลิก</button><button className="primary" disabled={unavailable} onClick={() => void action({type:'reset_run'}).then(ok => { if (ok) { setInputs(undefined); setSelectedId(''); go('overview'); } })}>เริ่มรอบใหม่</button></div>
+      <div className="dialog-actions"><button className="secondary" onClick={() => setLayer(undefined)}>ยกเลิก</button><button className="primary" disabled={unavailable} onClick={() => void action({type:'reset_run'}).then(ok => { if (ok) { setInputs(undefined); planDrafts.current.clear(); setSelectedId(''); go('overview'); } })}>เริ่มรอบใหม่</button></div>
     </Dialog>}
-    {mode && selected && <PlanDialog key={`${selected.id}:${mode}`} mode={mode} variant={selected} state={state} previous={inputs}
+    {mode && selected && <PlanDialog key={`${selected.id}:${mode}`} mode={mode} variant={selected} state={state} previous={planDrafts.current.get(`${selected.id}:${mode}`) ?? inputs}
+      onDraft={next => planDrafts.current.set(`${selected.id}:${mode}`,next)}
       onClose={() => setMode(undefined)} onSubmit={submitPlan}/>}
     {!selected && page === 'plan' && <Empty>ร้านนี้ยังไม่มีสินค้าให้ประเมิน</Empty>}
   </div>;

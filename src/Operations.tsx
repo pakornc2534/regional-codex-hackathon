@@ -3,8 +3,10 @@ import { Boxes, ClipboardCheck, PackagePlus, Search, Truck } from 'lucide-react'
 import { Empty, Metric, Notice } from './components';
 import { baht, count, date, stages, statusLabel, time, type Command, type Order, type ShopState, type Variant } from './model';
 
+const movementNames: Record<string,string> = { pos_sale:'ขายที่หน้าร้าน', accept_order:'จองจากออเดอร์ออนไลน์', pickup:'ขนส่งรับพัสดุ', cancel_order:'ยกเลิกออเดอร์' };
 type Action = (command: Command) => Promise<boolean>;
 export function ProductFacts({ variant, state, action }: { variant: Variant; state: ShopState; action: Action }) {
+  const movements = state.movements.filter(item => item.variantId === variant.id).slice(-12).reverse();
   const stock = state.channelStock.find(row => row.variantId === variant.id);
   const [quantity, setQuantity] = useState(1);
   const [failSync, setFailSync] = useState(false);
@@ -30,6 +32,9 @@ export function ProductFacts({ variant, state, action }: { variant: Variant; sta
         <button disabled={quantity < 1 || quantity > variant.available} className="secondary" onClick={() => void action({ type: 'accept_order', variantId: variant.id, quantity, failSync })}>รับออเดอร์ออนไลน์</button>
       </div>
     </details>
+    <details className="assumptions"><summary>ประวัติความเคลื่อนไหวของสต็อก</summary>
+      {movements.length ? <div className="record-list">{movements.map(item => <div key={item.id} className="record"><div><strong>{movementNames[item.reason] ?? item.reason}</strong><small>{date(item.at)} · {time(item.at)} น.</small></div><span>{item.before.available} → {item.after.available} ชิ้นพร้อมขาย</span></div>)}</div> : <Empty>ยังไม่มีการเปลี่ยนแปลงในรอบทดลองนี้</Empty>}
+    </details>
   </>;
 }
 export function Stock({ variants, open, state }: { variants: Variant[]; open: (variantId: string) => void; state: ShopState }) {
@@ -49,9 +54,10 @@ export function Supplies({ state, action }: { state: ShopState; action: Action }
   const [id, setId] = useState(state.supplies[0]?.id ?? '');
   const [quantity, setQuantity] = useState(10);
   return <section className="panel"><div className="section-head"><div><h2>วัสดุที่พร้อมใช้</h2><p>หักวัสดุที่จองไว้ให้รายการชำระแล้ว</p></div><PackagePlus size={22} className="subtle-icon"/></div>
-    <div className="table-scroll"><table><thead><tr><th>วัสดุ</th><th>คงเหลือ</th><th>จอง</th><th>พร้อมใช้</th><th>พอใช้</th><th>รอของ</th></tr></thead><tbody>
-      {state.supplies.map(row => <tr key={row.id}><td><strong>{row.name}</strong><small>{row.unit}</small></td><td>{count(row.quantity)}</td><td>{count(row.reserved)}</td><td>{count(row.free)}</td><td>{row.daysRemaining === null ? 'ยังประเมินไม่ได้' : `${count(row.daysRemaining)} วัน`}</td><td>{row.leadDays} วัน</td></tr>)}
+    <div className="table-scroll"><table><thead><tr><th>วัสดุ</th><th>คงเหลือ</th><th>จอง</th><th>พร้อมใช้</th><th>พอใช้</th><th>รอของ</th><th>ควรสั่งภายใน</th></tr></thead><tbody>
+      {state.supplies.map(row => <tr key={row.id}><td><strong>{row.name}</strong><small>{row.unit}</small></td><td>{count(row.quantity)}</td><td>{count(row.reserved)}</td><td>{count(row.free)}</td><td>{row.daysRemaining === null ? 'ยังประเมินไม่ได้' : `${count(row.daysRemaining)} วัน`}</td><td>{row.leadDays} วัน</td><td>{row.orderOn ? date(row.orderOn) : 'ยังประเมินไม่ได้'}</td></tr>)}
     </tbody></table></div>
+    {state.capacity && <p className="muted">จากสัดส่วนยอดขายเฉลี่ยของร้าน วัสดุรองรับ {count(state.capacity.materialCapacity)} ชิ้น · เหลือกำลังสำหรับคิวใหม่วันนี้ {count(state.capacity.nextDayNewUnits)} ชิ้น{state.capacity.bottleneckSupplyId ? ` · วัสดุที่จำกัดที่สุดคือ ${state.supplies.find(item => item.id === state.capacity?.bottleneckSupplyId)?.name ?? ''}` : ''}</p>}
     <form className="inline-form" onSubmit={event => { event.preventDefault(); void action({ type: 'receive_supply', supplyId: id, quantity }); }}>
       <label className="field">วัสดุที่ได้รับ<select value={id} onChange={event => setId(event.target.value)}>{state.supplies.map(supply => <option key={supply.id} value={supply.id}>{supply.name}</option>)}</select></label>
       <label className="field">จำนวน<input type="number" min="0.01" step="0.01" value={quantity} onChange={event => setQuantity(Number(event.target.value))}/></label>
@@ -93,7 +99,9 @@ export function Fulfillment({ state, variants, action, initial = 'picking', forO
       {active && <div className="order-detail">
         <div className="section-head"><div><h3>{active.items.map(item => `${titles.get(item.variantId)} × ${item.quantity}`).join(', ')}</h3><p>{active.id} · {stages[active.fulfillmentStatus] ?? active.fulfillmentStatus}</p></div><ClipboardCheck size={22}/></div>
         {active.prepareBy && <p>กำหนดเตรียม {date(active.prepareBy)} เวลา {time(active.prepareBy)} น.</p>}
-        {active.documents && <dl className="fact-list"><div><dt>รายการหยิบสินค้า</dt><dd>{active.documents.pickList}</dd></div><div><dt>ใบปะหน้า</dt><dd>{active.documents.label}</dd></div></dl>}
+        {active.documents && <dl className="fact-list"><div><dt>รายการหยิบสินค้า</dt><dd>{active.documents.pickList.map(item => `${item.sellerSku} × ${item.quantity}`).join(', ')}</dd></div><div><dt>ใบปะหน้า</dt><dd>{active.documents.label}</dd></div></dl>}
+        {active.tracking && <p>เลขติดตามพัสดุ {active.tracking}</p>}
+        {!!active.events?.length && <details className="assumptions"><summary>ประวัติขนส่ง</summary><ul className="bullet-list">{active.events.map((event,index) => <li key={index}>{stages[event.stage] ?? event.stage} · {date(event.at)} {time(event.at)} น.</li>)}</ul></details>}
         <div className="choice-row">{(orderActions[active.fulfillmentStatus] ?? []).map(([type, label]) => <button key={type} className="secondary" onClick={() => void action({ type, orderId: active.id })}>{label}</button>)}</div>
       </div>}
       {orders.length ? <>

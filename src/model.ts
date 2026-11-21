@@ -21,7 +21,7 @@ const stateSchema = z.object({
     id: s, channel: s, customerId: s, conversationId: s.nullish(), paymentStatus: s, fulfillmentStatus: s, paidAmount: n, createdAt: s, prepareBy: s.nullish(),
     items: z.array(z.object({ variantId: s, quantity: n, unitPrice: n })),
     settlement: z.object({ amount: n, date: s }).nullish(),
-    documents: z.object({ pickList: s, label: s }).nullish(), tracking: s.nullish(), events: z.array(z.object({stage:s, at:s})).optional(),
+    documents: z.object({ pickList: z.array(z.object({sellerSku:s,quantity:n})), label: s }).nullish(), tracking: s.nullish(), events: z.array(z.object({stage:s, at:s})).optional(),
   })),
   channelStock: z.array(z.object({ variantId: s, desiredQuantity: n, verifiedQuantity: nullableMoney, syncStatus: s })),
   cases: z.array(z.object({
@@ -38,7 +38,8 @@ const stateSchema = z.object({
     daily: z.array(z.object({ date: s, online: n, pos: n, orders: n })),
     stages: z.record(s, z.object({ orders: n, units: n })),
   }),
-  health: z.object({status:s, observedAt:s, source:s, stale:z.boolean(), period:z.object({from:s,to:s})}).optional(), mail: z.array(z.object({id:s,date:s,status:s})).default([]), movements: z.array(z.record(s,z.unknown())).default([]),
+  health: z.object({status:s, observedAt:s, source:s, stale:z.boolean(), period:z.object({from:s,to:s})}).optional(), mail: z.array(z.object({id:s,date:s,status:s})).default([]), movements: z.array(z.object({id:s,variantId:s,reason:s,at:s,before:z.object({available:n}),after:z.object({available:n})})).default([]),
+  capacity: z.object({materialCapacity: nullableMoney, bottleneckSupplyId:s.nullish(),workerCapacity:nullableMoney,nextDayNewUnits:nullableMoney}).optional(),
   managerPaused: z.boolean(), acknowledgement: z.object({ enabled: z.boolean(), text: s }).optional(),
   policies: z.array(z.record(s, z.unknown())), briefs: z.array(z.record(s, z.unknown())), plans: z.array(z.record(s, z.unknown())),
   news: z.array(z.record(s, z.unknown())), competitors: z.array(z.record(s, z.unknown())), audit: z.array(z.record(s, z.unknown())),

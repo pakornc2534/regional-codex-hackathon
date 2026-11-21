@@ -18,8 +18,10 @@ export async function encode(value){
   if(envelope.length>wireLimit)throw Error('ข้อมูลบีบอัดมีขนาดเกินกำหนด')
   return envelope
 }
-export async function decode(stream){
-  const obj=JSON.parse(decoder.decode(await bounded(stream,wireLimit)))
+export async function decode(stream,onWire){
+  const wire=await bounded(stream,wireLimit)
+  const obj=JSON.parse(decoder.decode(wire))
+  onWire?.(wire)
   if(obj?.encoding!=='gzip-base64')return obj
   const zip=Uint8Array.from(atob(obj.data),c=>c.charCodeAt(0))
   return JSON.parse(decoder.decode(await bounded(new Blob([zip]).stream().pipeThrough(new DecompressionStream('gzip')),rawLimit)))

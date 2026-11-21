@@ -57,6 +57,7 @@ export function CaseDetail({ item, state, action, analyze, ask, openOrder, openI
 
 export function Inboxes({ state, action, conversationId, onSelect }: { state: ShopState; action: Action; conversationId?: string; onSelect: (id: string) => void }) {
   const [message, setMessage] = useState('');
+  const [reply, setReply] = useState('');
   const conversation = state.conversations.find(room => room.id === conversationId) ?? state.conversations[0];
   const acknowledgement = state.acknowledgement;
   const [ack, setAck] = useState(acknowledgement?.text ?? '');
@@ -64,10 +65,13 @@ export function Inboxes({ state, action, conversationId, onSelect }: { state: Sh
   return <div className="stack"><section className="panel">
     <div className="section-head"><div><h2>กล่องข้อความร้านจำลอง</h2><p>ห้องแชทแยกตามลูกค้า</p></div><Headphones size={22} className="subtle-icon"/></div>
     {conversation ? <>
-      <div className="choice-row status-tabs">{state.conversations.map(room => <button key={room.id} className={room.id === conversation.id ? 'active' : ''} onClick={() => { onSelect(room.id); setMessage(''); }}>{room.title}</button>)}</div>
+      <div className="choice-row status-tabs">{state.conversations.map(room => <button key={room.id} className={room.id === conversation.id ? 'active' : ''} onClick={() => { onSelect(room.id); setMessage(''); setReply(''); }}>{room.title}</button>)}</div>
       <div className="section-head"><div><h3>{conversation.title}</h3><p>{conversation.owner === 'human' ? 'เจ้าของร้านรับช่วง' : 'ผู้จัดการ AI ดูแล'}</p></div>
       <button className="secondary" onClick={() => void action({ type: conversation.owner === 'human' ? 'resume_agent' : 'take_over', conversationId: conversation.id })}>{conversation.owner === 'human' ? 'ให้ผู้จัดการดูแลต่อ' : 'รับช่วงแชทนี้'}</button></div>
       <div className="customer-thread">{conversation.messages.map(item => <div className={item.author === 'customer' ? 'message incoming' : 'message outgoing'} key={item.id}><small>{item.author === 'customer' ? 'ลูกค้าจำลอง' : item.author === 'human' ? 'เจ้าของร้าน' : 'ผู้จัดการร้าน'} · {time(item.at)}</small><p>{item.text}</p></div>)}</div>
+      {conversation.owner === 'human' && <form className="inline-form" onSubmit={event => { event.preventDefault(); const text = reply.trim(); if (text) void action({type:'human_reply',conversationId:conversation.id,text}).then(ok => { if (ok) setReply(''); }); }}>
+        <label className="field">ตอบลูกค้าด้วยตัวเอง<textarea value={reply} maxLength={1000} onChange={event => setReply(event.target.value)}/></label><button className="primary" disabled={!reply.trim()}>ส่งข้อความนี้</button>
+      </form>}
       <form className="inline-form" onSubmit={event => { event.preventDefault(); const text = message.trim(); if (text) void action({ type: 'customer_message', conversationId: conversation.id, text }).then(success => { if (success) setMessage(''); }); }}>
         <label className="field">จำลองข้อความใหม่จากลูกค้า<input value={message} placeholder="เช่น ยังมีของอยู่ไหมคะ" onChange={event => setMessage(event.target.value)}/></label>
         <button className="secondary" disabled={!message.trim()}>สร้างข้อความจำลอง</button>
@@ -81,9 +85,9 @@ export function Inboxes({ state, action, conversationId, onSelect }: { state: Sh
   </form></section></div>;
 }
 
-export function Manager({ state, room, variant, draft, setDraft, send, reconnect, action, busy, cancel }: {
+export function Manager({ state, room, variant, draft, setDraft, send, reconnect, action, busy, cancel, openCase }: {
   state: ShopState; room: Room; variant?: Variant;
-  draft: string; setDraft: (text: string) => void; send: () => Promise<boolean>; reconnect: () => void; action: Action; busy: boolean; cancel: (jobId: string) => void;
+  draft: string; setDraft: (text: string) => void; send: () => Promise<boolean>; reconnect: () => void; action: Action; busy: boolean; cancel: (jobId: string) => void; openCase?: () => void;
 }) {
   const messages = state.owner.messages.filter(item => item.room === room.name && (!room.caseId || item.caseId === room.caseId));
   const field = useRef<HTMLTextAreaElement>(null);
@@ -94,7 +98,7 @@ export function Manager({ state, room, variant, draft, setDraft, send, reconnect
   return <aside className="assistant-pane" aria-label="ผู้จัดการ AI">
     <div className="assistant-head"><div className="assistant-avatar"><Sparkles size={20}/></div><div><h2>ผู้จัดการ AI</h2><div className={connected && !state.managerPaused ? 'assistant-status ready' : 'assistant-status'}><i/>{state.managerPaused ? 'พักผู้จัดการแล้ว' : connected ? 'เชื่อมต่อ Codex แล้ว' : 'ยังไม่ได้เชื่อมต่อ AI'}</div></div>
       <button className="icon-btn pause" disabled={busy || state.hosted?.stale} aria-label={state.managerPaused ? 'ให้ผู้จัดการทำงานต่อ' : 'พักผู้จัดการ'} title={state.managerPaused ? 'ให้ทำงานต่อ' : 'พักผู้จัดการ'} onClick={() => void action({ type:'pause_manager', paused:!state.managerPaused })}>{state.managerPaused ? <CirclePlay size={19}/> : <CirclePause size={19}/>}</button></div>
-    <div className="assistant-context"><span>{state.hosted?.publicDemo ? 'ห้องสนทนาสาธารณะ' : 'ห้องสนทนาเจ้าของร้าน'}</span><strong>{room.title}</strong>{variant && <small>{variant.productName} · {variant.sellerSku}</small>}</div>
+    <div className="assistant-context"><span>{state.hosted?.publicDemo ? 'ห้องสนทนาสาธารณะ' : 'ห้องสนทนาเจ้าของร้าน'}</span><strong>{room.title}</strong>{variant && <small>{variant.productName} · {variant.sellerSku}</small>}{openCase && <button className="text-btn" onClick={openCase}>เปิดข้อมูลและตัวเลือกในเคส</button>}</div>
     <div className="assistant-history" ref={history} aria-live="polite">
       {messages.length ? messages.map(item => <div className={item.role === 'owner' ? 'message outgoing' : 'message incoming'} key={item.id}>
         <small>{item.role === 'owner' ? 'เจ้าของร้าน' : 'ผู้จัดการ AI'} · {time(item.createdAt)}</small><p>{item.text}</p>{item.status && !['completed', 'verified', 'sent'].includes(item.status) && <small>{statusLabel(item.status)}</small>}

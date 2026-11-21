@@ -13,3 +13,17 @@ The automated suite covers immutable previews, duplicate commands, approvals and
 Run `npm test`, `npm run typecheck` and `npm run build`. For the genuine manager cycle, start the API with a fresh temporary DATA_DIR and run `TEST_ORIGIN=http://127.0.0.1:4310 node scripts/check-manager.mjs`. This sends one message in that disposable simulated world. For an informational model question only, add `READ_ONLY=1`.
 
 The fake inbox and carrier events do not validate any actual Shopee or email service. Figures depend on the current shared demo state. For reproducible seed values, use an isolated local shop.
+
+## Browser, deployment and recovery checks on 21 November 2026
+
+- 23 automated tests passed, including a real local API subprocess whose response was deliberately lost after a POS sale. The relay recovered the original verified receipt and counted one additional order.
+- Chrome rendered the rotatable scene and all operational areas. The product dialog opened a second advertising dialog. Escape closed only the top one and returned focus. ROBOT results showed 19 units total and preparation capacity 25. The desktop and 390/360 px mobile layouts had no document overflow in the tested views.
+- In a disposable shop the browser picked a fixture response and verified the exact content in the customer inbox, placed a two-unit ROBOT order, generated its documents, packed it, confirmed collection, and received supplies.
+- A browser session on the publicly deployed Site submitted an owner question to the shared demo, received a genuine model response, and found it displayed in the chat. The response reported ฿221,056 across 600 paid orders for the seven-day period. No real store was involved.
+- The account-health report, sample news, simulated carrier and simulated email are fixtures. Live web-research quality depends on the connected account and its search service. The acceptance checks above did not validate live competitor coverage or any actual seller offer.
+
+![Desktop shop](screenshots/shop-3d.png)
+
+![Hosted conversation](screenshots/hosted-demo.png)
+
+Additional checks: [domain scenarios](domain-verification.md). Run the destructive browser test only on a disposable local data directory using SHOP_UI_TEST_URL and scripts/check-ui.mjs. For the read-only layout test use TEST_ORIGIN and scripts/check-plan-layout.mjs.

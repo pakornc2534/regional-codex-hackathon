@@ -30,35 +30,40 @@ function example(variantId: string, mode: Mode, days: number): PlanInputs {
     ...(mode === 'investment' ? { loanPrincipal: 0, loanFees: 0, graceDays: 0, installments: 1, restockUnits: 0, restockDelay: 0 } : {}),
   };
 }
-export function PlanDialog({ variant, mode, state, previous, onClose, onSubmit }: { variant: Variant; mode: Mode; state: ShopState; previous?: PlanInputs; onClose: () => void; onSubmit: (inputs: PlanInputs) => void }) {
+export function PlanDialog({ variant, mode, state, previous, onClose, onSubmit, onDraft }: { variant: Variant; mode: Mode; state: ShopState; previous?: PlanInputs; onClose: () => void; onSubmit: (inputs: PlanInputs) => void; onDraft: (inputs: PlanInputs) => void }) {
   const [inputs, setInputs] = useState(() => previous?.variantId === variant.id && previous.mode === mode ? previous : example(variant.id, mode, 1));
-  const field = ([key, label, min, step]: Field) => <label key={key} className="field">{label}
-    <input type="number" min={min} step={step} max={key.endsWith('Rate') || key === 'voucherUsage' ? 1 : undefined}
+  function update(next: PlanInputs) {
+    setInputs(next);
+    onDraft(next);
+  }
+  const field = ([key, label, min, step]: Field) => <div key={key} className="field"><label htmlFor={'plan-field-' + key}>{label}</label>
+    <input id={'plan-field-' + key} type="number" min={min} step={step} max={key.endsWith('Rate') || key === 'voucherUsage' ? 1 : undefined}
       value={inputs[key] ?? ''} placeholder={key === 'cash' ? `${count(state.defaults.cash)} · ค่าเริ่มต้นร้าน` : key === 'packingCapacity' ? `${count(state.defaults.packingCapacity)} · ค่าเริ่มต้นร้าน` : undefined}
       required={key === 'days' || key === 'cpc'} onChange={event => {
         const value = event.currentTarget.value;
-        setInputs(current => {
-          const updated = { ...current };
-          if (value.trim() === '') delete updated[key];
-          else updated[key] = Number(value);
-          return updated;
-        });
+        const updated = { ...inputs };
+        if (value.trim() === '') delete updated[key];
+        else updated[key] = Number(value);
+        update(updated);
       }}/>
     {(key === 'cash' || key === 'packingCapacity') && <label className="check-row"><input type="checkbox" checked={inputs[key] === null} onChange={event => {
       const checked = event.currentTarget.checked;
-      setInputs(current => {
-        const updated = { ...current };
-        if (checked) updated[key] = null;
-        else delete updated[key];
-        return updated;
-      });
+      const updated = { ...inputs };
+      if (checked) updated[key] = null;
+      else delete updated[key];
+      update(updated);
     }}/> ยังไม่ทราบ</label>}
-  </label>;
+  </div>;
   return <Dialog title={modes[mode]} description={`${variant.productName} · ${variant.sellerSku}`} onClose={onClose}>
     <form onSubmit={event => { event.preventDefault(); onSubmit(inputs); }}>
-      <div className="choice-row sample-buttons">{[1, 7, 14].map(days => <button key={days} type="button" className={inputs.days === days ? 'active' : ''} onClick={() => setInputs(example(variant.id, mode, days))}>ตัวอย่าง {days} วัน</button>)}</div>
+      <div className="choice-row sample-buttons">{[1, 7, 14].map(days => <button key={days} type="button" className={inputs.days === days ? 'active' : ''} onClick={() => update(example(variant.id, mode, days))}>ตัวอย่าง {days} วัน</button>)}</div>
       <p className="muted">{mode === 'flash' ? 'กรอกค่าพื้นที่โปรโมชันเฉพาะกรณีที่มีค่าใช้จ่าย' : 'ผลประเมินใช้ข้อมูลและสมมติฐานของร้านจำลอง'}</p>
-      <div className="form-grid">{byMode[mode].map(field)}{shared.slice(0, 2).map(field)}</div>
+      <div className="form-grid">{byMode[mode].map(field)}{shared.slice(0, 2).map(field)}
+        {mode === 'investment' && <>
+          <label className="field">วัสดุที่สั่งซื้อ<select value={inputs.supplyId ?? ''} onChange={event => update({...inputs,supplyId:event.target.value || null})}><option value="">ไม่ได้สั่งวัสดุ</option>{state.supplies.map(item => <option value={item.id} key={item.id}>{item.name} · {item.unit}</option>)}</select></label>
+          {inputs.supplyId && ([['supplyQuantity','ปริมาณวัสดุที่สั่ง','0','0.01'],['supplySpend','ต้นทุนซื้อวัสดุรวม (บาท)','0','0.01'],['supplyDelay','รอวัสดุมาถึง (วัน)','0','1']] satisfies Field[]).map(field)}
+        </>}
+      </div>
       <details className="assumptions"><summary>สมมติฐานและข้อจำกัด <ChevronDown size={16}/></summary><div className="form-grid">{shared.slice(2).map(field)}</div></details>
       <div className="dialog-actions"><button type="button" className="secondary" onClick={onClose}>ยกเลิก</button><button className="primary" type="submit"><Calculator size={17}/> ประเมินแผนนี้</button></div>
     </form>
@@ -99,6 +104,8 @@ export function usePlanEvaluation(state: ShopState | undefined, inputs: PlanInpu
   };
 }
 
+const costNames: Record<string,string> = { product:'ต้นทุนสินค้าเดิม', inboundProduct:'ต้นทุนสินค้าสั่งเพิ่ม', packing:'วัสดุแพ็ก', fee:'ค่าธรรมเนียมช่องทาง', sellerVoucher:'คูปองที่ร้านออก', sellerShipping:'ค่าส่งที่ร้านออก', affiliate:'ค่านายหน้า' };
+const requirementNames: Record<string,string> = { stock:'สต็อก', materials:'วัสดุแพ็ก', capacity:'กำลังแพ็ก', quota:'โควตาโปรโมชัน', demand:'ความต้องการ' };
 export function PlanResults({ evaluation, onSave, onDiscuss, onSupplies, onPacking, unavailable }: {
   evaluation: ReturnType<typeof usePlanEvaluation>;
   onSave: () => void; onDiscuss: () => void; onSupplies: () => void; onPacking: () => void; unavailable: boolean;
@@ -129,7 +136,28 @@ export function PlanResults({ evaluation, onSave, onDiscuss, onSupplies, onPacki
         <div><dt>กำลังแพ็กที่เหลือ</dt><dd>{count(result.preparationCapacity)} ชิ้น</dd></div>
         <div><dt>รายได้ตามแผน</dt><dd>{baht(result.revenue)}</dd></div>
         <div><dt>เงินสดต่ำสุดของแผน</dt><dd>{baht(result.lowestCash)}</dd></div>
+        <div><dt>ยอดรอรับหลังจบแผน</dt><dd>{baht(result.receivables)}</dd></div>
+        {result.adSpend !== null && result.adSpend > 0 && <><div><dt>คาดการณ์คลิกและยอดขายเพิ่ม</dt><dd>{count(result.assumedClicks)} คลิก · {count(result.assumedIncrementalAdUnits)} ชิ้น</dd></div><div><dt>รายได้ที่คาดว่ามาจากแอดเทียบเงินค่าแอด</dt><dd>{result.roas === null ? 'ยังประเมินไม่ได้' : count(result.roas) + ' เท่า'}</dd></div></>}
       </dl>
+      <details className="assumptions"><summary>ที่มาของตัวเลขและทรัพยากรที่ต้องใช้</summary>
+        <dl className="fact-list">
+          <div><dt>สต็อกที่กันไว้ขายหน้าร้าน</dt><dd>{count(result.posAllowance)} ชิ้น</dd></div>
+          <div><dt>คิวเดิมที่ต้องแพ็ก</dt><dd>{count(result.queueUnits)} ชิ้น</dd></div>
+          <div><dt>กำลังแพ็กที่กันไว้ให้สินค้าอื่น</dt><dd>{count(result.otherUnits)} ชิ้น</dd></div>
+          <div><dt>ต้นทุนคงที่ทั้งแผน</dt><dd>{baht(result.fixedCosts)}</dd></div>
+        </dl>
+        {result.costs && <div className="table-scroll"><table><thead><tr><th>ต้นทุนต่อชิ้น</th><th>บาท</th></tr></thead><tbody>
+          {Object.entries(result.costs).map(([key,value]) => <tr key={key}><td>{costNames[key] ?? key}</td><td>{count(value)}</td></tr>)}
+        </tbody></table></div>}
+        {!!result.materials?.length && <div className="table-scroll"><table><thead><tr><th>วัสดุ</th><th>กันให้สินค้าอื่น</th><th>เหลือให้สินค้านี้</th><th>แพ็กได้ (ชิ้น)</th></tr></thead><tbody>
+          {result.materials.map(row => <tr key={row.supplyId}><td>{row.name}</td><td>{count(row.reservedForOthers)}</td><td>{count(row.remaining)}</td><td>{count(row.capacity)}</td></tr>)}
+        </tbody></table></div>}
+        {result.wholePlanRequirements && <div className="table-scroll"><table><thead><tr><th>เงื่อนไขให้คุ้มทั้งแผน</th><th>รองรับ</th><th>ต้องใช้</th><th>ขาด</th></tr></thead><tbody>
+          {Object.entries(result.wholePlanRequirements).map(([key,row]) => <tr key={key}><td>{requirementNames[key] ?? key}</td><td>{count(row.available)}</td><td>{count(row.required)}</td><td>{count(row.shortfall)}</td></tr>)}
+        </tbody></table></div>}
+      </details>
+      {!!result.cashTimeline?.length && <details className="assumptions"><summary>เงินเข้าและออกตามวัน</summary><div className="table-scroll"><table><thead><tr><th>นับจากเริ่มแผน (วัน)</th><th>เงินเข้า</th><th>เงินออก</th><th>ยอดคงเหลือ</th></tr></thead><tbody>{result.cashTimeline.map(row => <tr key={row.day}><td>{row.day}</td><td>{baht(row.in)}</td><td>{baht(row.out)}</td><td>{baht(row.balance)}</td></tr>)}</tbody></table></div></details>}
+      {!!result.loanSchedule?.length && <details className="assumptions"><summary>ตัวอย่างตารางชำระเงินกู้</summary><div className="table-scroll"><table><thead><tr><th>ครบกำหนด (วัน)</th><th>เงินต้น</th><th>ดอกเบี้ย</th><th>หนี้คงเหลือ</th></tr></thead><tbody>{result.loanSchedule.map(row => <tr key={row.day}><td>{row.day}</td><td>{baht(row.principal)}</td><td>{baht(row.interest)}</td><td>{baht(row.outstanding)}</td></tr>)}</tbody></table></div></details>}
       {result.adSpend !== null && result.adSpend > 0 && result.adRecoveryUnits !== null && result.adRecoveryUnits > 0 && result.unitContribution !== null && <p className="reason-line">
         ที่ {count(result.adRecoveryUnits - 1)} ชิ้น เงินเหลือ {baht((result.adRecoveryUnits - 1) * result.unitContribution)} · ที่ {count(result.adRecoveryUnits)} ชิ้น เงินเหลือ {baht(result.adRecoveryUnits * result.unitContribution)} · หลังหักค่าแอด {baht(result.adRecoveryUnits * result.unitContribution - result.adSpend)}
       </p>}
