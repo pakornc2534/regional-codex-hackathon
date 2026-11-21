@@ -16,6 +16,7 @@
     "manager:live": "node server/live-manager-agent.mjs dev"
   },
   "dependencies": {
+    "@anam-ai/js-sdk": "4.29.1",
     "@fontsource-variable/noto-sans-thai": "^5.3.0",
     "@livekit/agents": "1.10.1",
     "@livekit/agents-plugin-anam": "1.10.1",

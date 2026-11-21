@@ -62,9 +62,12 @@ const server=http.createServer(async(req,res)=>{
         const out=domain.applyCommand(shop.world,b);shop.saveWorld(out.world);if(shop.world.managerPaused)agent.stop();changed();return json(out.receipt)
       }
       case '/api/manager/live/session':
+      case '/api/manager/live/avatar':
       case '/api/manager/live/end': {
         if (!req.headers.origin) reject(403,'เปิดการคุยสดจากหน้าเว็บร้านเท่านั้น')
-        return json(path.endsWith('/session') ? await liveManager.start() : await liveManager.end(b))
+        if (path.endsWith('/session')) return json(await liveManager.start())
+        if (path.endsWith('/avatar')) return json(await liveManager.avatar(b))
+        return json(await liveManager.end(b))
       }
       case '/api/manager/live/read':return json(liveManager.read(b,req.headers))
       case '/api/customer/ask':return json(customer.submit(b))

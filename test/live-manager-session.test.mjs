@@ -39,3 +39,23 @@ test('the public simulator relay cannot mint paid voice sessions', async () => {
   const sessions = liveManagerSessions({world:seedWorld()},{...env,DEMO_RUNTIME:'true'})
   await assert.rejects(sessions.start(),{status:503})
 })
+
+test('loopback pass-through gives one short Anam token to the active browser room', async () => {
+  const avatarId = 'affe8ba2-6401-4c89-b394-619ad9720540'
+  const config = {...env,ANAM_API_KEY:'fixture-only-key',ANAM_AVATAR_ID:avatarId}
+  const sessions = liveManagerSessions({world:seedWorld()},config,async (url,options) => {
+    assert.equal(url,'https://api.anam.ai/v1/auth/session-token')
+    assert.equal(options.headers.authorization,'Bearer fixture-only-key')
+    const {personaConfig} = JSON.parse(options.body)
+    assert.equal(personaConfig.avatarId,avatarId)
+    assert.equal(personaConfig.enableAudioPassthrough,true)
+    assert.ok(personaConfig.maxSessionLengthSeconds <= 240)
+    return Response.json({sessionToken:'fixture-short-lived-token'})
+  })
+  await assert.rejects(sessions.avatar({room:'missing',identity:'any'}),{status:409})
+  const {room,identity,browserAvatar} = await sessions.start()
+  assert.equal(browserAvatar,true)
+  await assert.rejects(sessions.avatar({room,identity:'other'}),{status:409})
+  assert.deepEqual(await sessions.avatar({room,identity}),{sessionToken:'fixture-short-lived-token'})
+  await assert.rejects(sessions.avatar({room,identity}),{status:429})
+})

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { AudioLines, Mic, MicOff, PhoneOff, Send, Volume2, X } from 'lucide-react';
 import type { RemoteParticipant, Room } from 'livekit-client';
 import { z } from 'zod';
+import { createBrowserAvatar, warmAvatarAudio, type BrowserAvatarStage } from './ready-avatar';
 import './ready-manager.css';
 
 const sessionSchema = z.object({
@@ -13,6 +14,7 @@ const sessionSchema = z.object({
   room: z.string().min(1),
   identity: z.string().min(1),
   assistantIdentity: z.string().optional(),
+  browserAvatar: z.boolean().optional(),
 });
 const searchSources = z.object({
   sources: z.array(z.object({
@@ -38,10 +40,18 @@ const avatar = '/ready-manager.webp';
 const readyStates = new Set(['listening', 'thinking', 'speaking']);
 const searchDate = new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
 type RoomCredentials = Pick<z.infer<typeof sessionSchema>, 'room' | 'identity'>;
-type ActiveCall = { room?: Room; abort: AbortController; credentials?: RoomCredentials };
+type ActiveCall = {
+  room?: Room;
+  abort: AbortController;
+  credentials?: RoomCredentials;
+  avatarAudio?: AudioContext;
+  avatar?: ReturnType<typeof createBrowserAvatar>;
+};
 
 function releaseCall(call: ActiveCall | undefined) {
   call?.abort.abort();
+  if (call?.avatar) call.avatar.close();
+  else if (call?.avatarAudio?.state !== 'closed') void call?.avatarAudio?.close().catch(() => {});
   void call?.room?.disconnect().catch(() => {});
   if (call?.credentials) {
     void fetch('/api/manager/live/end', {
@@ -63,6 +73,8 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
   const [hasVideo, setHasVideo] = useState(false);
   const [avatarMode, setAvatarMode] = useState<'video' | 'audio'>();
   const [audioBlocked, setAudioBlocked] = useState(false);
+  const [avatarAudioBlocked, setAvatarAudioBlocked] = useState(false);
+  const [browserAvatarStage, setBrowserAvatarStage] = useState<BrowserAvatarStage>();
   const active = useRef<ActiveCall | undefined>(undefined);
   const button = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -82,6 +94,8 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
     setHasVideo(false);
     setAvatarMode(undefined);
     setAudioBlocked(false);
+    setAvatarAudioBlocked(false);
+    setBrowserAvatarStage(undefined);
     setSending(false);
   }
 
@@ -123,8 +137,8 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
   }, [open]);
 
   useEffect(() => {
-    if (call.phase === 'connected' && document.activeElement === document.body) input.current?.focus();
-  }, [call.phase]);
+    if (call.phase === 'connected' && browserAvatarStage !== 'connecting' && document.activeElement === document.body) input.current?.focus();
+  }, [call.phase, browserAvatarStage]);
 
   useEffect(() => {
     if (log.current) log.current.scrollTop = log.current.scrollHeight;
@@ -143,7 +157,7 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
 
   async function startCall() {
     if (active.current) return;
-    const current: ActiveCall = { abort: new AbortController() };
+    const current: ActiveCall = { abort: new AbortController(), avatarAudio: warmAvatarAudio() };
     active.current = current;
     setCall({ phase: 'connecting' });
     setMessages([]);
@@ -177,6 +191,20 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
       const isAgent = (participant: RemoteParticipant) =>
         session.assistantIdentity ? participant.identity === session.assistantIdentity : participant.kind === ParticipantKind.AGENT;
 
+      if (session.browserAvatar && videoElement && current.avatarAudio) {
+        current.avatar = createBrowserAvatar(videoElement, current.avatarAudio, (stage, ownsAudio) => {
+          if (!isCurrent()) return;
+          setBrowserAvatarStage(stage);
+          setHasVideo(stage === 'ready');
+          setAvatarAudioBlocked(stage === 'ready' && !ownsAudio);
+          audioContainer?.querySelectorAll('audio').forEach(element => { element.muted = ownsAudio; });
+        });
+        void current.avatar.start(current.credentials);
+      } else if (current.avatarAudio) {
+        void current.avatarAudio.close().catch(() => {});
+        current.avatarAudio = undefined;
+      }
+
       let entered = false;
       const update = () => {
         if (!isCurrent()) return;
@@ -206,20 +234,24 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
         .on(RoomEvent.AudioPlaybackStatusChanged, () => {
           if (isCurrent()) setAudioBlocked(!room.canPlaybackAudio);
         })
-        .on(RoomEvent.TrackSubscribed, track => {
+        .on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
           if (!isCurrent()) return;
-          if (track.kind === Track.Kind.Video && videoElement) {
+          if (track.kind === Track.Kind.Video && videoElement && !current.avatar) {
             track.attach(videoElement);
             setHasVideo(true);
           } else if (track.kind === Track.Kind.Audio && audioContainer) {
-            audioContainer.append(track.attach());
+            const element = track.attach();
+            element.muted = current.avatar?.ownsAudio() ?? false;
+            audioContainer.append(element);
+            if (isAgent(participant)) current.avatar?.attachTrack(track.mediaStreamTrack);
           }
         })
         .on(RoomEvent.TrackUnsubscribed, track => {
-          if (track.kind === Track.Kind.Video && videoElement) {
+          if (track.kind === Track.Kind.Video && videoElement && !current.avatar) {
             track.detach(videoElement);
             if (isCurrent()) setHasVideo(false);
           } else {
+            current.avatar?.detachTrack(track.mediaStreamTrack);
             track.detach().forEach(element => element.remove());
           }
         });
@@ -288,7 +320,7 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
 
   async function toggleMic() {
     const current = active.current;
-    if (!current?.room || mic === 'requesting' || call.phase !== 'connected') return;
+    if (!current?.room || mic === 'requesting' || call.phase !== 'connected' || browserAvatarStage === 'connecting') return;
     const enable = mic !== 'on';
     const room = current.room;
     setMic('requesting');
@@ -308,7 +340,7 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
     event.preventDefault();
     const current = active.current;
     const text = draft.trim();
-    if (!text || !current?.room || sending || call.phase !== 'connected') return;
+    if (!text || !current?.room || sending || call.phase !== 'connected' || browserAvatarStage === 'connecting') return;
     setSending(true);
     setCall({ phase: 'connected' });
     try {
@@ -324,7 +356,9 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
     }
   }
 
-  const live = call.phase === 'connected';
+  const live = call.phase === 'connected' && browserAvatarStage !== 'connecting';
+  const connectionLabel = browserAvatarStage === 'connecting' && call.phase === 'connected'
+    ? 'กำลังเปิดวิดีโอ Anam' : statusText[call.phase];
   const inCall = call.phase !== 'idle';
 
   return (
@@ -338,13 +372,17 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
 
         <div className="ready-stage">
           <img src={avatar} alt="ภาพผู้จัดการร้านพร้อม" width={480} height={320} hidden={hasVideo}/>
-          <video ref={video} autoPlay playsInline muted hidden={!hasVideo} aria-label="วิดีโอสดของพร้อม"/>
+          <video ref={video} autoPlay playsInline hidden={!hasVideo && browserAvatarStage !== 'connecting'} aria-label="วิดีโอสดของพร้อม"
+            data-avatar-loading={browserAvatarStage === 'connecting' ? true : undefined}
+            data-avatar-source={browserAvatarStage === 'ready' ? 'anam-browser' : undefined}/>
           <div ref={playback} hidden aria-hidden="true"/>
-          {!hasVideo && avatarMode === 'audio' && <span className="ready-voice-label">โหมดเสียง</span>}
+          {browserAvatarStage === 'connecting' && <span className="ready-voice-label">กำลังเปิดวิดีโอ Anam</span>}
+          {!hasVideo && browserAvatarStage !== 'connecting' && (avatarMode === 'audio' || browserAvatarStage === 'audio') &&
+            <span className="ready-voice-label">โหมดเสียง</span>}
         </div>
 
         <div className="ready-controls">
-          <span role="status" className="ready-status" data-live={live}>{statusText[call.phase]}</span>
+          <span role="status" className="ready-status" data-live={live}>{connectionLabel}</span>
           {!inCall
             ? <button className="ready-primary" type="button" onClick={() => void startCall()}><AudioLines size={16}/> เริ่มคุยสด</button>
             : <>
@@ -367,7 +405,11 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
               </div>)}
         </div>
 
-        {audioBlocked && <button type="button" className="ready-audio" onClick={() => void active.current?.room?.startAudio().catch(() => setAudioBlocked(true))}><Volume2 size={17}/> เปิดเสียงคำตอบ</button>}
+        {(avatarAudioBlocked || (audioBlocked && browserAvatarStage !== 'ready')) &&
+          <button type="button" className="ready-audio" onClick={() => {
+            void active.current?.room?.startAudio().catch(() => setAudioBlocked(true));
+            void active.current?.avatar?.enableAudio();
+          }}><Volume2 size={17}/> เปิดเสียงคำตอบ</button>}
         {call.error && <div className="ready-error" role="alert">{call.error}{!inCall && <button type="button" onClick={() => { close(); onOpenTextManager(); }}>เปิดแชทข้อความเดิม</button>}</div>}
         <form className="ready-compose" onSubmit={send}>
           <label className="ready-sr" htmlFor={panelId + '-question'}>คำถามถึงพร้อม</label>

@@ -41,7 +41,9 @@
 .ready-stage { height: min(160px, 21dvh); min-height: 79px; background: #d9ceee; position: relative; overflow: hidden; }
 .ready-stage > img, .ready-stage video { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 29%; }
 .ready-stage > img[hidden], .ready-stage video[hidden] { display: none; }
-.ready-voice-label { position: absolute; bottom: 7px; right: 8px; padding: 2px 7px; background: #302749eb; color: #fff; border-radius: 5px; font-size: 11px; }
+.ready-stage video[data-avatar-loading] { position: absolute; inset: 0; }
+.ready-stage > img:not([hidden]) { position: relative; z-index: 1; }
+.ready-voice-label { position: absolute; z-index: 2; bottom: 7px; right: 8px; padding: 2px 7px; background: #302749eb; color: #fff; border-radius: 5px; font-size: 11px; }
 .ready-controls { display: flex; gap: 7px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--ready-line); }
 .ready-status { margin-right: auto; font-size: 12px; font-weight: 650; }
 .ready-status::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: #83778e; vertical-align: 1px; }
