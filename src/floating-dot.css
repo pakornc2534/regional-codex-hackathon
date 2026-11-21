@@ -1,0 +1,64 @@
+.floating-dot {
+  --dot-diameter: 68px;
+  position: fixed;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 32;
+  width: var(--dot-diameter);
+  height: var(--dot-diameter);
+  color: #22373b;
+  font: 15px/1.5 'Noto Sans Thai Variable', 'Leelawadee UI', sans-serif;
+}
+.floating-dot *, .floating-dot *::after, .floating-dot *::before { box-sizing: border-box; }
+.floating-dot button, .floating-dot a { font-family: inherit; cursor: pointer; }
+.floating-dot :is(button,a):focus-visible { outline: 3px solid #df9755; outline-offset: 3px; }
+.floating-dot-launcher {
+  position: relative; display: grid; place-items: center; width: 100%; height: 100%; padding: 0;
+  border: 2px solid #f5ebd4; border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, #496768, #233c46 73%);
+  box-shadow: 0 3px 12px #102b3440, 0 0 0 1px #567071;
+}
+.floating-dot-launcher:hover, .floating-dot-launcher[aria-expanded="true"] { box-shadow: 0 4px 14px #102b3450, 0 0 0 2px #b97b48; }
+.floating-dot-figure { display: grid; place-content: center; position: absolute; inset: 0; pointer-events: none; }
+.floating-dot-figure .dot-robot { transform: scale(.41); }
+.floating-dot-name { position: absolute; bottom: -3px; right: -3px; padding: 0 6px; font: 700 11px/1.5 system-ui,sans-serif;
+  border: 1px solid #bdc7bc; border-radius: 10px; background: #f6f2df; color: #273f3c; }
+.floating-dot-panel {
+  position: absolute; right: 0; bottom: calc(100% + 12px); width: min(320px, calc(100vw - 28px));
+  max-height: min(410px, calc(100dvh - 172px)); overflow: auto; overscroll-behavior: contain;
+  margin: 0; padding: 14px 16px 16px; border: 1px solid #bec8bd; border-radius: 14px;
+  background: #fffdf8; box-shadow: 0 8px 32px #152b3530;
+}
+.floating-dot-heading, .floating-dot-actions { display: flex; align-items: center; gap: 8px; }
+.floating-dot-heading { justify-content: space-between; }
+.floating-dot-heading h2 { margin: 0; color: #193c3d; font-family: inherit; font-weight: 680; font-size: 19px; line-height: 1.4; }
+.floating-dot-close { display: grid; place-items: center; min-width: 36px; min-height: 36px; border: 0; background: none; color: #405355; border-radius: 50%; }
+.floating-dot-close:hover { background: #ebeee8; }
+.floating-dot-message { margin: 5px 0 12px; color: #33484b; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+.floating-dot-actions { flex-wrap: wrap; }
+.floating-dot-actions :is(button,a) { min-height: 40px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;
+  font-size: 14px; font-weight: 620; line-height: 1.4; border-radius: 6px; text-decoration: none; }
+.floating-dot-actions .dot-avatar-play { border: 1px solid #264b49; background: #264b49; color: #fffdf7; }
+.floating-dot-actions .floating-dot-details { border: 0; background: transparent; color: #2c5853; }
+.floating-dot-actions .floating-dot-details:hover { text-decoration: underline; }
+.floating-dot-status { margin: 6px 0 0; font-size: 13px; color: #586768; }
+.floating-dot-status:empty { display: none; }
+
+@media (min-width: 950px) {
+  .app-shell:has(.floating-dot) .desk-compose { padding-bottom: 91px; }
+}
+@media (max-width: 949px) {
+  .floating-dot { --dot-diameter: 56px; right: max(12px, env(safe-area-inset-right)); }
+  .floating-dot-figure .dot-robot { transform: scale(.34); }
+  .app-shell .floating-dot { bottom: calc(var(--shop-tabs-height, 62px) + 12px); }
+  .app-shell:has(.floating-dot) .workspace { padding-bottom: calc(var(--shop-tabs-height, 62px) + 82px); }
+}
+.app-shell:has(.scene-fullscreen) .floating-dot { bottom: max(17px, env(safe-area-inset-bottom)); }
+.app-shell:has(.floating-dot) .scene-fullscreen .scene-caption { min-height: 82px; padding-right: 84px; }
+.buyer-chat:has(+ .floating-dot) { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+@media (max-width: 849px) {
+  .buyer-chat:has(+ .floating-dot) form { padding-inline-end: 68px; }
+}
+@media (max-height: 460px) {
+  .floating-dot-panel { max-height: calc(100dvh - 150px); }
+}

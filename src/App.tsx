@@ -1,8 +1,10 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CalendarDays, PanelsTopLeft, BookOpen, Calculator, ChevronRight, Maximize2, Menu, Minimize2, RotateCcw, Settings2, X } from 'lucide-react';
 import { ShopIcon } from './ShopIcon';
 import { CatalogFeature, OverviewMetrics, ProductFinder } from './Overview';
-import { DotEntry, DotPanel } from './DotPanel';
+import { DotEntry, DotPanel, dotVoiceMessage } from './DotPanel';
+import { FloatingDot, type FloatingDotHandle } from './FloatingDot';
+import { dotSummary } from '../shared/dot-monitor.mjs';
 import { Briefs, Competitors, Memory, Sales, SalesChart, Settings } from './Business';
 import { Dialog, Empty, Notice } from './components';
 import { CaseDetail, CaseList, Inboxes, Manager } from './Manager';
@@ -115,6 +117,21 @@ function ProductSelector({ state, variants, selected, onSelect, children }: { st
 
 export default function App() {
   const { state, loadError, refresh } = useShopState();
+  const floatingDot = useRef<FloatingDotHandle>(null);
+  const mobileTabs = useRef<HTMLDivElement>(null);
+  const hasWorkspace = Boolean(state);
+  useLayoutEffect(() => {
+    const tabs = mobileTabs.current;
+    const shell = tabs?.parentElement;
+    if (!tabs || !shell) return;
+    const measure = () => shell.style.setProperty('--shop-tabs-height', tabs.getBoundingClientRect().height + 'px');
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(tabs);
+    return () => observer.disconnect();
+  }, [hasWorkspace]);
+  const dotStale = Boolean(loadError || state?.hosted?.stale);
+  const dotSnapshot = useMemo(() => state && dotSummary(state, dotStale), [state, dotStale]);
   const [page, setPage] = useState<Page>(pageFromLocation);
   const [mobile, setMobile] = useState<'menu' | 'manager' | undefined>();
   const [selectedId, setSelectedId] = useState('');
@@ -270,9 +287,10 @@ export default function App() {
     scrollResults.current = true;
   }
 
-  if (!state) {
+  if (!state || !dotSnapshot) {
     return <div className="boot"><div className="brand-glyph"><ShopIcon name="storemark" size={36}/></div><h1>ร้านเรา</h1>
       {loadError ? <><Notice error>{loadError}</Notice><button className="primary" onClick={() => void refresh()}>ลองเชื่อมต่อร้านอีกครั้ง</button></> : <p role="status">กำลังเปิดร้านจำลอง…</p>}
+      <FloatingDot message="กำลังรอข้อมูลร้านจำลองค่ะ"/>
     </div>;
   }
   const { metrics } = state;
@@ -335,7 +353,7 @@ export default function App() {
       </div>
       <section className="panel dashboard-sales"><div className="section-head"><h2>ยอดขายรายวัน</h2><button className="text-btn" onClick={() => go('insights')}>ดูรายงาน</button></div><SalesChart state={state} from={metrics.period?.from} to={metrics.period?.to}/></section>
     </>; break;
-    case 'dot': content = <DotPanel state={state} stale={Boolean(loadError || state.hosted?.stale)} onWork={area => {
+    case 'dot': content = <DotPanel snapshot={dotSnapshot} onListen={() => floatingDot.current?.listen()} onWork={area => {
       if (area === 'orders' || area === 'returns') {
         setOrderStage(area === 'returns' ? 'returns' : 'picking');
         go('orders');
@@ -382,7 +400,7 @@ export default function App() {
       {page === 'overview' && <a className="buyer-entry" href="/?customer"><ShopIcon name="inbox" size={20}/> ทดลองถามสินค้าในแชทลูกค้า</a>}
       <div className="workspace-content">{content}</div>
     </main>
-    <div className="mobile-tabs" role="group" aria-label="ทางลัด">
+    <div ref={mobileTabs} className="mobile-tabs" role="group" aria-label="ทางลัด">
       <button aria-current={page === 'overview' ? 'page' : undefined} onClick={() => go('overview')}><ShopIcon name="overview"/>{workspaceNames.overview}</button>
       <button aria-current={page === 'scene' ? 'page' : undefined} onClick={() => go('scene')}><ShopIcon name="scene"/>{workspaceNames.scene}</button>
       <button aria-current={page === 'cases' ? 'page' : undefined} onClick={() => go('cases')}><ShopIcon name="cases"/>{workspaceNames.cases}</button>
@@ -417,6 +435,7 @@ export default function App() {
       onDraft={next => planDrafts.current.set(`${selected.id}:${mode}`,next)}
       onClose={() => setMode(undefined)} onSubmit={submitPlan}/>}
     {!selected && page === 'plan' && <Empty>ร้านนี้ยังไม่มีสินค้าให้ประเมิน</Empty>}
+    {!mobile && !layer && !mode && <FloatingDot key={page} ref={floatingDot} message={dotVoiceMessage(dotSnapshot)} onDetails={() => go('dot')}/>}
   </div>;
 }
 function isZone(key: string): key is SceneZone { return Object.hasOwn(stations, key); }

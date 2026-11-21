@@ -17,4 +17,32 @@ const dotDownload = {
     })
   },
 }
-export default defineConfig({plugins:[react(),dotDownload],server:{host:'127.0.0.1',port:4310,strictPort:true,proxy:{'/api':'http://127.0.0.1:4311'}},build:{outDir:'dist/client'}})
+
+const guideEntry = 'docs/guide/index.html'
+const guideAvatar = {
+  name: 'guide-avatar',
+  transformIndexHtml: {
+    order: 'pre',
+    handler(html, { filename }) {
+      if (filename.replaceAll('\\', '/').endsWith('/' + guideEntry)) {
+        return html.replace('</main>', '</main><script type="module" src="/src/guide-dot.tsx"></script>')
+      }
+    },
+  },
+  generateBundle: {
+    order: 'post',
+    handler(_options, bundle) {
+      const guide = bundle[guideEntry]
+      if (guide) {
+        this.emitFile({type: 'asset', fileName: 'guide/index.html', source: guide.source})
+        delete bundle[guideEntry]
+      }
+    },
+  },
+}
+
+export default defineConfig({
+  plugins:[react(),dotDownload,guideAvatar],
+  server:{host:'127.0.0.1',port:4310,strictPort:true,proxy:{'/api':'http://127.0.0.1:4311'}},
+  build:{outDir:'dist/client',rolldownOptions:{input:['index.html', guideEntry]}},
+})

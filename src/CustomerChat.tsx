@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { z } from 'zod';
 import { post, problem } from './model';
 import { ShopIcon } from './ShopIcon';
+import { FloatingDot } from './FloatingDot';
 import './customer-chat.css';
 
 const replySchema = z.discriminatedUnion('status', [
@@ -46,7 +47,7 @@ export function CustomerChat() {
     }
   }
 
-  return <main className="buyer-chat">
+  return <><main className="buyer-chat">
     <header><ShopIcon name="storemark" size={38}/><h1>ถามร้านเรา</h1><a href="/">กลับหน้าร้าน</a></header>
     <p>ลองถามราคา รุ่น หรือของที่เหลือในร้านจำลอง กรุณาอย่าใส่ข้อมูลส่วนตัว</p>
     <div className="buyer-thread" role="log" aria-label="บทสนทนากับร้าน">
@@ -67,5 +68,6 @@ export function CustomerChat() {
       <textarea ref={input} id="buyer-question" value={draft} onChange={e => setDraft(e.target.value)} maxLength={300} rows={2} readOnly={pending}/>
       <button className="primary" disabled={pending || !draft.trim()}>ส่งคำถาม</button>
     </form>
-  </main>;
+  </main><FloatingDot message="อยากรู้ราคาหรือเช็กว่าสินค้ารุ่นไหนยังมีอยู่ พิมพ์ชื่อสินค้าถามร้านได้เลยค่ะ"
+    detailsLabel="ถามเรื่องสินค้า" onDetails={() => input.current?.focus()}/></>;
 }

@@ -4,8 +4,6 @@ import {gzipSync} from 'node:zlib'
 import {buildDotDownload, dotDownloadName} from './dot-download.mjs'
 await fs.mkdir('dist/client/downloads',{recursive:true})
 await fs.writeFile(path.join('dist/client/downloads',dotDownloadName),await buildDotDownload())
-await fs.mkdir('dist/client/guide',{recursive:true})
-await fs.copyFile('docs/guide/index.html','dist/client/guide/index.html')
 const names=await fs.readdir('dist/client',{recursive:true})
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.woff2':'font/woff2','.json':'application/json','.zip':'application/zip','.mp3':'audio/mpeg'}
 const assets={}

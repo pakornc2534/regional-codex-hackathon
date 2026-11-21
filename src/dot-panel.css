@@ -33,6 +33,9 @@
 .dot-panel { display: grid; min-width: 0; gap: 16px; }
 .dot-links, .dot-section-head, .dot-cadence, .dot-section-head h2 { display: flex; align-items: center; }
 .dot-links { gap: 8px; flex-wrap: wrap; }
+.dot-desktop-setup summary { cursor: pointer; font-weight: 650; color: var(--green); }
+.dot-desktop-setup p { font-size: 14px; color: var(--muted); margin-block: 8px 12px; }
+.dot-desktop-setup a { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 .dot-links a { min-height: 42px; font-size: 14px; text-decoration: none; padding-inline: 14px; }
 .dot-section-head { justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; }
 .dot-section-head h2 { gap: 8px; }

@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Square, Volume2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './dot-avatar.css';
 
 export function DotRobot({ talking = false }: { talking?: boolean }) {
@@ -30,7 +29,7 @@ type Playback = 'idle' | 'waiting' | 'speaking' | 'paused';
 const sampleCaption = 'สวัสดีค่ะ ดอตผู้ช่วยร้านค่ะ ถ้ามียอดซื้อพุ่ง ดอตจะบอกทันที และทุกเช้าจะบอกว่าวันนี้มีงานอะไรบ้างค่ะ';
 
 /** The shop schedules its audible desktop alerts independently of this on-demand preview. */
-export function DotAvatar({ message, desktopAction }: { message: string; desktopAction?: ReactNode }) {
+export function useDotVoice(message: string) {
   const [playback, setPlayback] = useState<Playback>('idle');
   const [caption, setCaption] = useState('');
   const [sample, setSample] = useState(false);
@@ -55,7 +54,7 @@ export function DotAvatar({ message, desktopAction }: { message: string; desktop
     };
   }, []);
 
-  function stop() {
+  const stop = useCallback(() => {
     window.clearTimeout(timeout.current);
     if (current.current) {
       current.current = null;
@@ -66,7 +65,7 @@ export function DotAvatar({ message, desktopAction }: { message: string; desktop
     playing?.pause();
     setPlayback('idle');
     setNotice('');
-  }
+  }, []);
 
   function playSample() {
     const track = new Audio('/dot-voice/preview.mp3');
@@ -140,19 +139,6 @@ export function DotAvatar({ message, desktopAction }: { message: string; desktop
   }
 
   const active = playback !== 'idle';
-  return <section className="dot-avatar-card" aria-label="หุ่นยนต์แจ้งเตือน Dot">
-    <div className="dot-avatar-stage"><DotRobot talking={playback === 'speaking'} /></div>
-    <div className="dot-avatar-copy">
-      <h2>หุ่นยนต์แจ้งเตือน Dot</h2>
-      <p className="dot-avatar-caption">{active && sample && <strong>ตัวอย่างเสียง Dot · </strong>}{active ? caption : message}</p>
-      <div className="dot-avatar-actions">
-        <button type="button" className="dot-avatar-play" onClick={active ? stop : play}>
-          {active ? <Square size={15} aria-hidden="true" /> : <Volume2 size={18} aria-hidden="true" />}
-          {active ? 'หยุดเสียง' : 'ฟังเสียง Dot'}
-        </button>
-        {desktopAction}
-      </div>
-      <p role="status" className="dot-avatar-notice">{notice || (playback === 'waiting' ? 'กำลังเตรียมเสียง…' : '')}</p>
-    </div>
-  </section>;
+  return { active, talking: playback === 'speaking', caption: active ? caption : message, sample: active && sample,
+    notice: notice || (playback === 'waiting' ? 'กำลังเตรียมเสียง…' : ''), play, stop };
 }
