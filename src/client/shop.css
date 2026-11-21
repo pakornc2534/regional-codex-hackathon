@@ -1061,3 +1061,16 @@ td .row {
 .shell button[data-slot="toggle-group-item"][data-state="on"] {
   background: var(--secondary);
 }
+
+.readback {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-inline-start: 3px solid var(--primary);
+  border-radius: 8px;
+  margin: 9px 0;
+}
+.readback button {
+  justify-self: start;
+}

@@ -2,16 +2,12 @@ import { ConversationLog } from "./ConversationLog";
 import { useEffect, useState } from "react";
 import {
   ArrowUpRight,
-  Boxes,
   Calculator,
   ChevronRight,
-  ClipboardList,
   MessageCircle,
   PackageCheck,
   Search,
   ShoppingBag,
-  Truck,
-  Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,11 +117,58 @@ export function Options({ caseId }: { caseId: string }) {
   const { s, cmd, busy } = useShop(),
     pr = [...s.proposals].reverse().find((p) => p.caseId === caseId);
   if (!pr) return null;
+  const receipt = [...s.receipts]
+    .reverse()
+    .find((r) => r.caseId === caseId && r.action);
+  const currentCase = s.cases.find((c) => c.id === caseId);
+  const inbox =
+    currentCase?.type === "reply"
+      ? s.conversations.find((t) => t.id === currentCase.target)
+      : null;
+  const delivered = inbox?.messages.find((m) => m.id === receipt?.verification);
   return (
     <div className="options">
       <Badge variant="secondary">
         {statuses[pr.status]} · {pr.source === "ai" ? "ผู้จัดการ AI" : "ข้อมูลทดสอบ"}
       </Badge>
+      {receipt && (
+        <section className="readback">
+          <b>
+            {statuses[receipt.status]} · {thTime(receipt.at)}
+          </b>
+          <p>
+            {delivered
+              ? "ข้อความที่อ่านกลับจาก " + inbox?.title + " · " + delivered.text
+              : receipt.action === "prepare_order"
+                ? "เอกสารที่ตรวจพบ " +
+                  (Array.isArray(receipt.after) ? receipt.after.length : 0) +
+                  " ชุด"
+                : receipt.action
+                  ? actions[receipt.action]
+                  : ""}
+          </p>
+          <small>
+            {receipt.level === 1
+              ? "เจ้าของเป็นผู้เลือก"
+              : "ผู้จัดการทำตามกฎระดับ " +
+                receipt.level +
+                " · " +
+                (currentCase?.title ?? "")}
+          </small>
+          {inbox && delivered && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                go("inbox");
+                ui.getState().change({ inbox: inbox.id, manager: false });
+              }}
+            >
+              เปิดข้อความที่ส่ง
+            </Button>
+          )}
+        </section>
+      )}
       {pr.options.map((o) => (
         <div key={o.id} className="option">
           <b>{actions[o.action]}</b>
@@ -436,7 +479,7 @@ export function Product() {
         </TabsContent>
       </Tabs>
       <div className="row">
-        <Button onClick={() => change({ planner: true })}>
+        <Button id="open-ad-planner" onClick={() => change({ planner: true })}>
           <Calculator />
           ยิงแอด
         </Button>

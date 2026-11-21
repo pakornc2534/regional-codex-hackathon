@@ -9,7 +9,7 @@ const prod =
   process.argv.includes("--production") ||
   process.env.NODE_ENV === "production";
 const store = await Store.open(path.resolve(process.env.DATA_DIR ?? ".data"));
-const app = api(store, prod);
+const app = api(store);
 if (prod) {
   app.use("/assets/*", serveStatic({ root: "./dist" }));
   app.get("*", (c) => c.html(fs.readFileSync("dist/index.html", "utf8")));

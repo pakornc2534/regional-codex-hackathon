@@ -25,7 +25,7 @@ it("S12 and S22 report missing credentials, actual upstream error, successful re
   vi.stubEnv("OPENAI_API_KEY", "");
   expect((await new Manager(st).retry()).error).toContain("OPENAI_API_KEY");
   let fail = true;
-  const server = createServer((req, res) => {
+  const server = createServer((_req, res) => {
     res.setHeader("Content-Type", "application/json");
     res.statusCode = fail ? 401 : 200;
     res.end(
@@ -81,7 +81,7 @@ it("S13 and S22 enforce shared-demo host/origin, body limit, rate limits and key
   vi.stubEnv("PUBLIC_ORIGIN", "https://shop.example");
   vi.stubEnv("OPENAI_API_KEY", "fixture-publication-test-key");
   vi.stubEnv("DEMO_AI_ENABLED", "false");
-  const app = api(st, true),
+  const app = api(st),
     server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 });
   clean.push(async () => {
     if ("closeAllConnections" in server) server.closeAllConnections();

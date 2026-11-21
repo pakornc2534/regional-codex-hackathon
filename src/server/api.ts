@@ -18,7 +18,7 @@ const room = scope.extend({
   rehearsal: rehearsalSchema.optional(),
   text: z.string().trim().min(1).max(1800),
 });
-export function api(store: Store, production = false) {
+export function api(store: Store) {
   const app = new Hono(),
     ai = new Manager(store),
     publicOrigin = process.env.PUBLIC_ORIGIN
@@ -50,9 +50,12 @@ export function api(store: Store, production = false) {
     }),
   );
   app.use("/api/*", async (c, next) => {
+    const peer = (getConnInfo(c).remote.address ?? "").replace(/^::ffff:/, "");
+    const loopback = peer === "127.0.0.1" || peer === "::1";
     const host = c.req.header("host") ?? "",
       origin = c.req.header("origin"),
-      local = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
+      local =
+        loopback && /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
     if (
       !local &&
       (!shared || !publicOrigin || host !== new URL(publicOrigin).host)
@@ -75,10 +78,9 @@ export function api(store: Store, production = false) {
       return c.json({ error: "รูปแบบข้อมูลไม่ถูกต้อง" }, 415);
     if (shared) {
       const ip =
-        (getConnInfo(c).remote.address ?? "local") +
-        (process.env.TRUST_PROXY === "true"
-          ? "/" + (c.req.header("x-real-ip") ?? "unknown")
-          : "");
+        peer === process.env.TRUSTED_PROXY_IP
+          ? (c.req.header("x-real-ip") ?? peer)
+          : peer;
       const mutation = c.req.method === "POST",
         prefix = mutation ? "write" : "read";
       if (
@@ -183,6 +185,7 @@ export function api(store: Store, production = false) {
           .start(
             { room: k.id, runId: s.runId, version: s.revision },
             "ตรวจเหตุการณ์ล่าสุดและเสนอทางเลือกตามสิทธิ์",
+            "event",
           )
           .catch(() => {});
     }

@@ -16,7 +16,7 @@ import {
 import { uid } from "../src/server/fulfillment";
 import { scopeContext, useTool } from "../src/server/manager-tools";
 import { rehearse } from "../src/shared/rehearsal";
-import type { Receipt, Action, ShopCase } from "../src/shared/model";
+import type { Receipt, Action } from "../src/shared/model";
 const dirs: string[] = [];
 async function setup() {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ranrao-"));

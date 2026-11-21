@@ -298,9 +298,10 @@ export const roundQty = (n: number) => Math.round(n * 100) / 100;
 export const money = (n: number | null | undefined) =>
   n == null
     ? "ยังไม่ทราบ"
-    : new Intl.NumberFormat("th-TH", { maximumFractionDigits: 2 }).format(
-        n / 100,
-      );
+    : new Intl.NumberFormat("th-TH", {
+        minimumFractionDigits: n % 100 ? 2 : 0,
+        maximumFractionDigits: 2,
+      }).format(n / 100);
 export const thTime = (time: string) =>
   new Date(time).toLocaleString("th-TH", {
     timeZone: "Asia/Bangkok",

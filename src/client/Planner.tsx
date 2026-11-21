@@ -191,15 +191,17 @@ export function Planner() {
               ? scoped.m === null
                 ? "ยังไม่ทราบต้นทุน หรือข้อมูลที่จำเป็นต่อการประเมิน"
                 : "รายได้ต่อชิ้นไม่พอคืนค่าแอด"
-              : scoped.queueOver
-                ? "คิวเดิมเกินกำลังแพ็ก " + scoped.queueOver + " ชิ้น จึงรับงานใหม่ไม่ได้"
-                : "ถ้าขายเพิ่มจากปกติ " +
-                  scoped.targets.recover +
-                  " ชิ้นขึ้นไป รวมอย่างน้อย " +
-                  ((scoped.baselineUnits ?? 0) + scoped.targets.recover) +
-                  " ชิ้น เงินที่เหลือหลังหักต้นทุนจะพอจ่ายค่าแอด " +
-                  money(scoped.spend) +
-                  " บาทแล้ว"}
+              : scoped.baselineUnits === null
+                ? "ยังไม่ทราบกำลังแพ็ก จึงยังยืนยันยอดรวมที่ร้านรองรับไม่ได้"
+                : scoped.queueOver
+                  ? "คิวเดิมเกินกำลังแพ็ก " + scoped.queueOver + " ชิ้น จึงรับงานใหม่ไม่ได้"
+                  : "ถ้าขายเพิ่มจากปกติ " +
+                    scoped.targets.recover +
+                    " ชิ้นขึ้นไป รวมอย่างน้อย " +
+                    ((scoped.baselineUnits ?? 0) + scoped.targets.recover) +
+                    " ชิ้น เงินที่เหลือหลังหักต้นทุนจะพอจ่ายค่าแอด " +
+                    money(scoped.spend) +
+                    " บาทแล้ว"}
           </p>
           <div className="eyebrow">
             ผลกระทบต่อเนื่อง · งบแอด ฿{money(scoped.spend)}
@@ -239,6 +241,18 @@ export function Planner() {
               ],
               ["เงินเหลือต่อชิ้นก่อนค่าแอด", money(scoped.m) + " บาท"],
               ["รายรับตามแผน", money(scoped.revenue) + " บาท"],
+              [
+                "ยอดขายจากแอด / ค่าแอดย้อนหลัง",
+                scoped.historicalAd
+                  ? money(scoped.historicalAd.attributedRevenue) +
+                    " / " +
+                    money(scoped.historicalAd.spend) +
+                    " บาท · ROAS " +
+                    (scoped.historicalAd.roas?.toFixed(2) ?? "ยังประเมินไม่ได้") +
+                    " · " +
+                    scoped.historicalAd.period.join(" ถึง ")
+                  : "ไม่มีแคมเปญ",
+              ],
               [
                 "ราคาขาย / ต้นสินค้า / ค่าแพ็ก / ค่าธรรมเนียมต่อชิ้น",
                 [scoped.price, scoped.productCost, scoped.packCost, scoped.fee]

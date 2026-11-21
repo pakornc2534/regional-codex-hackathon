@@ -56,6 +56,9 @@ test("S6 S8 S18 open real gallery popups and evaluate the same planner as the AP
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(1);
   await expect(page.getByRole("dialog")).toContainText("ชั้นสินค้า");
+  await expect(
+    page.getByRole("button", { name: "ยิงแอด", exact: true }),
+  ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await nav(page, "ลองปรับแผน");

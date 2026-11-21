@@ -27,13 +27,15 @@ export function breakEven(
   units: number,
   fixed: number,
 ) {
-  if (m === null || m <= 0 || baseline === null)
+  if (m === null || m <= 0)
     return { recover: null, total: null, additional: null };
   const target = (amount: number) => {
     let q = Math.max(0, Math.floor(amount / m));
     while (q * m < amount) q++;
     return q;
   };
+  if (baseline === null)
+    return { recover: target(spend), total: null, additional: null };
   const total = target(baseline + spend + fixed);
   return {
     recover: target(spend),
@@ -193,7 +195,26 @@ export function calculatePlan(s: Shop, raw: PlanInputs) {
           : Math.max(0, required - available),
     })),
   }));
+  const campaign = s.campaigns.find((a) => a.variantIds.includes(v.id));
+  const linked = new Set(campaign?.attributedOrderIds ?? []);
+  const attributedRevenue = s.orders.reduce(
+    (sum, o) =>
+      sum +
+      (linked.has(o.id) && o.paid && o.stage !== "cancelled"
+        ? o.paidAmount
+        : 0),
+    0,
+  );
+  const historicalAd = campaign
+    ? {
+        period: campaign.period,
+        spend: campaign.spend,
+        attributedRevenue,
+        roas: campaign.spend > 0 ? attributedRevenue / campaign.spend : null,
+      }
+    : null;
   return {
+    historicalAd,
     runId: s.runId,
     version: s.revision,
     variantId: v.id,

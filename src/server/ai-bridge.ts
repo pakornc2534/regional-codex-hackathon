@@ -105,7 +105,7 @@ export class Manager {
     }
     return this.status;
   }
-  async start(room: Room, text: string) {
+  async start(room: Room, text: string, source: "event" | "owner" = "owner") {
     if (this.queue.size >= 8) throw Error("คิวผู้จัดการเต็ม กรุณาลองอีกครั้ง");
     if (!this.client || process.env.DEMO_AI_ENABLED === "false")
       await this.permit();
@@ -121,7 +121,8 @@ export class Manager {
         throw Error("ข้อมูลเปลี่ยนแล้ว");
       if (s.paused) throw Error("ผู้จัดการถูกพัก");
       scopeContext(s, p, room);
-      p.chat.push({ room: room.room, role: "owner", text, at: s.clock });
+      if (source === "owner")
+        p.chat.push({ room: room.room, role: "owner", text, at: s.clock });
     });
     this.jobs.set(job.id, job);
     this.controllers.set(job.id, abort);
@@ -137,6 +138,7 @@ export class Manager {
             room,
             "sim_get_context",
             {},
+            abort.signal,
           );
           const messages: ChatCompletionMessageParam[] = [
             {
@@ -156,6 +158,11 @@ export class Manager {
                 content: m.text,
               })),
           ];
+          if (source === "event")
+            messages.push({
+              role: "system",
+              content: "A shop event was recorded. " + text,
+            });
           for (let step = 0; step < 6; step++) {
             if (abort.signal.aborted) throw Error("ยกเลิกงานแล้ว");
             const client = await this.permit(),
@@ -204,6 +211,7 @@ export class Manager {
                 room,
                 call.function.name,
                 JSON.parse(call.function.arguments),
+                abort.signal,
               );
               messages.push({
                 role: "tool",

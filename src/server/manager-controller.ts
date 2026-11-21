@@ -199,7 +199,7 @@ export function perform(
   o: Option,
   owner: boolean,
   receipt: Receipt,
-  readback?: (v: boolean) => boolean,
+  readback?: (v: boolean) => boolean | "failed" | "uncertain",
 ) {
   if (!allowed(c, o.action) || s.paused || c.status !== "open")
     throw Error("ผู้จัดการไม่มีสิทธิ์ทำงานนี้ในขณะนี้");
@@ -247,8 +247,13 @@ export function perform(
           ? dest.status === "active"
           : dest.budget === o.amount;
   }
-  verified = readback ? readback(verified) : verified;
-  receipt.status = verified ? "verified" : "uncertain";
+  const observed = readback ? readback(verified) : verified ? true : "failed";
+  verified = observed === true;
+  receipt.status = verified
+    ? "verified"
+    : observed === "failed"
+      ? "failed"
+      : "uncertain";
   receipt.verification = verified
     ? String(typeof receipt.after === "string" ? receipt.after : c.target)
     : null;
@@ -262,6 +267,10 @@ export function perform(
     }
   } else {
     level(p, 1, "ตรวจผลไม่ได้ จึงกลับมาถามเจ้าของทุกครั้ง", s);
+    c.evidence =
+      receipt.status === "failed"
+        ? "ผลที่อ่านกลับไม่ตรงกับคำสั่ง"
+        : "ยังตรวจผลจากปลายทางไม่ได้";
     p.streak = [];
   }
   return receipt.status;

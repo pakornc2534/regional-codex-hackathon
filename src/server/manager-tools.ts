@@ -168,10 +168,12 @@ export async function useTool(
   r: Room,
   name: string,
   args: unknown,
+  signal?: AbortSignal,
 ) {
   const def = definitions[name as keyof typeof definitions];
   if (!def) throw Error("ไม่มีเครื่องมือนี้");
   return store.run((s, p) => {
+    if (signal?.aborted) throw Error("ยกเลิกงานแล้ว");
     if (r.runId !== s.runId || r.version !== s.revision)
       throw new Conflict("ข้อมูลเปลี่ยนแล้ว กรุณาวิเคราะห์ใหม่");
     const c = s.cases.find((c) => c.id === r.room);
@@ -281,7 +283,13 @@ export async function useTool(
     s.receipts.push(receipt);
     s.revision++;
     r.version = s.revision;
-    event(pr.status === "verified" ? "verified" : "uncertain");
+    event(
+      pr.status === "verified"
+        ? "verified"
+        : pr.status === "failed"
+          ? "failed"
+          : "uncertain",
+    );
     return receipt;
   });
 }

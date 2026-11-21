@@ -1,32 +1,15 @@
-import {
-  lazy,
-  Suspense,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
 import {
-  Activity,
-  ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
   BookOpen,
   Boxes,
-  BrainCircuit,
-  CalendarDays,
   ChartColumnIncreasing,
-  Check,
-  CircleHelp,
   Clock3,
   ClipboardList,
   FlaskConical,
-  Headset,
-  House,
-  Layers3,
   LayoutDashboard,
   Menu,
   MessageSquare,
@@ -38,14 +21,12 @@ import {
   RefreshCw,
   RotateCcw,
   Send,
-  Settings2,
   ShieldCheck,
   ShoppingBag,
   Sparkles,
   Store,
   Truck,
   Wallet,
-  Warehouse,
   X,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
@@ -74,7 +55,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { money, thTime, zones, statuses, type Zone } from "../shared/model";
+import { money, thTime, zones, statuses } from "../shared/model";
 import {
   StoreContext,
   ui,
@@ -90,7 +71,6 @@ import {
   Brief,
   CaseList,
   Cases,
-  Hint,
   Inbox,
   Memory,
   Options,
@@ -367,8 +347,7 @@ function ShopGallery({ compact = false }: { compact?: boolean }) {
   );
 }
 function Overview() {
-  const { s } = useShop(),
-    { change } = ui();
+  const { s } = useShop();
   return (
     <>
       <div className="metrics">
@@ -760,7 +739,16 @@ function Frame() {
         </DialogContent>
       </Dialog>
       <Dialog open={planner} onOpenChange={(o) => change({ planner: o })}>
-        <DialogContent className="shop-dialog">
+        <DialogContent
+          className="shop-dialog"
+          onCloseAutoFocus={(e) => {
+            const button = document.getElementById("open-ad-planner");
+            if (button) {
+              e.preventDefault();
+              button.focus();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>ลองแผนยิงแอด</DialogTitle>
             <DialogDescription>ประเมินผลก่อนใช้งบจริง</DialogDescription>
