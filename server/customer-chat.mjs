@@ -6,7 +6,7 @@ const catalog = world => world.products.flatMap(product =>
   product.variants.map(({sellerSku:sku,name:variant,price,available}) => ({sku,name:product.name,variant,price,available})))
 const normalize = value => value.normalize('NFKC').toLowerCase()
 const catalogReply = rows => rows.length ? rows.map(({sku,name,variant,price,available}) =>
-  [name + ' (' + sku + ')', variant && 'รุ่น ' + variant,
+  [name + ' (' + sku + ')', variant,
     price == null ? 'ยังไม่มีข้อมูลราคา' : 'ราคา ฿' + bahtAmount(price),
     available == null ? 'ยังไม่มีข้อมูลสต็อก' : available > 0 ? 'เหลือขาย ' + available + ' ชิ้น' : 'สินค้าหมด'].filter(Boolean).join(' · ')
 ).join('\n') : 'ระบุชื่อสินค้า รุ่น หรือรหัส SKU ที่สนใจได้เลยครับ'
