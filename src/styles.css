@@ -133,8 +133,8 @@ small { font-size: 11px; line-height: 1.4; }
 .segmented button.active { background: var(--navy-deep); color: #fff; }
 .scene-tool.icon-btn { min-width: 32px; min-height: 32px; border-color: var(--line); border-radius: 3px; }
 .scene-tool.icon-btn:hover { background: var(--soft); }
-.stage { min-width: 0; position: relative; height: clamp(350px,39vw,540px); background: #e8ecec; }
-.dashboard-lower .scene-card:not(.scene-fullscreen) .stage:not(.stage-flat) { height: clamp(200px,16vw,310px); }
+.stage { min-width: 0; position: relative; --scene-view-height: clamp(350px,39vw,540px); height: var(--scene-view-height); background: #e8ecec; }
+.dashboard-lower .scene-card:not(.scene-fullscreen) .stage:not(.stage-flat) { --scene-view-height: clamp(200px,16vw,310px); }
 .stage-loading { height: 100%; display: grid; place-items: center; color: var(--ink); }
 .scene-caption { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; padding: 7px 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
 .scene-caption button { display: flex; align-items: center; gap: 5px; color: var(--ink); padding: 4px 0; background: transparent; border: 0; font-size: 12px; }
@@ -308,7 +308,7 @@ td small { display: block; color: var(--muted); }
   .scene-tools { gap: 4px; }
   .segmented button { padding: 4px 7px; }
   .scene-tool.icon-btn { min-height: 30px; min-width: 30px; }
-  .stage { height: clamp(240px,70vw,340px); }
+  .stage { --scene-view-height: clamp(240px,70vw,340px); }
   .scene-caption { padding: 7px 9px; font-size: 12px; gap: 5px; }
   .scene-caption button { gap: 2px; font-size: 12px; padding: 4px; }
   .scene-caption button svg { width: 13px; }

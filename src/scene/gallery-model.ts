@@ -261,7 +261,7 @@ export function buildGallery(ids: string[], selectedIndex: number, shopName: str
   box(root, 12.85, 4.35, 0.38, 0xcbb89b, 0, 2.09, -3.67);
   box(root, 12.98, 0.16, 0.53, ivory, 0, 4.32, -3.65);
   let idx = 0;
-  const shelves = new Map<string, { parts: T.Group[]; pin: T.Group }>();
+  const shelves = new Map<string, { part: T.Group; pin: T.Group }[]>();
   function cabinet(x: number, width: number) {
     const bay = group(root, x, 0, -3.45);
     arch(bay, width + 0.18, 3.97, 0.11, ivory, 0, 0, 0);
@@ -282,9 +282,10 @@ export function buildGallery(ids: string[], selectedIndex: number, shopName: str
           index,
         );
         const id = ids[index];
+        const copy = { part: item, pin: group(item, 0, 0.64, 0.13) };
         const shelf = shelves.get(id);
-        if (shelf) shelf.parts.push(item);
-        else shelves.set(id, { parts: [item], pin: group(item, 0, 0.64, 0.13) });
+        if (shelf) shelf.push(copy);
+        else shelves.set(id, [copy]);
       }
     }
     box(bay, width + 0.03, 0.38, 0.8, wood, 0, 0.2, 0.39);
@@ -342,10 +343,8 @@ export function buildGallery(ids: string[], selectedIndex: number, shopName: str
   cyl(pedestal, 1.18, 0.52, 0xcdbd9f, 0, 0.54, 0);
   cyl(pedestal, 1.24, 0.07, brass, 0, 0.825, 0);
   cyl(pedestal, 1.21, 0.08, ivory, 0, 0.9, 0);
-  if (ids[selectedIndex]) {
-    const hero = toy(pedestal, 0, 0.94, 0, 1.35, selectedIndex);
-    hero.rotation.y = 0.35;
-  }
+  const hero = ids[selectedIndex] ? toy(pedestal, 0, 0.94, 0, 1.35, selectedIndex) : undefined;
+  if (hero) hero.rotation.y = 0.35;
   const ring = mesh(
     pedestal,
     new T.TorusGeometry(1.18, 0.048, 12, 72),
@@ -428,5 +427,5 @@ export function buildGallery(ids: string[], selectedIndex: number, shopName: str
     staging: { part: stage, pin: group(stage, -0.18, 0.83, 0.16) },
     carrier: { part: van, pin: group(van, 0.55, 0.95, -0.36) },
   };
-  return { root, stations, shelves, pedestal, pedestalPin: group(pedestal, 0, 1.75, 0.28) };
+  return { root, stations, shelves, pedestal, hero, pedestalPin: group(pedestal, 0, 1.75, 0.28) };
 }

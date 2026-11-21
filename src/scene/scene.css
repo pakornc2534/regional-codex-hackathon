@@ -1,288 +1,121 @@
 .scene-card { container: shop-scene / inline-size; }
-.scene-card:not(.scene-fullscreen) .stage:has(.diorama[data-labels="shown"]) { min-height: 360px; }
+.scene-card:not(.scene-fullscreen) .stage:has(> .diorama) { height: auto; }
+
 .diorama {
-  --diorama-backdrop: #263a42;
-  --diorama-ink: #fff9f0;
-  --diorama-ink-soft: #eef0ed;
-  --diorama-label: #26323cf5;
-  --diorama-boundary: #7e8d93;
-  --diorama-hot: #ff8a68;
-  --diorama-hot-ring: #ff8a683b;
-  --diorama-hot-shadow: #232d3361;
-  --diorama-font: inherit;
+  --rail: clamp(115px, 14cqw, 155px);
+  --inset: clamp(7px, 1.2cqw, 16px);
+  --caption-height: 62px;
+  --canvas-column: 2;
+  --canvas-row: 2;
+  --columns: calc(var(--rail) + 2 * var(--inset)) minmax(0, 1fr) calc(var(--rail) + 2 * var(--inset));
+  --rows: var(--caption-height) minmax(0, 1fr);
   position: relative;
-  isolation: isolate;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  background: radial-gradient(ellipse at 50% 44%, #3b4f54, var(--diorama-backdrop) 70%, #203139);
-  color: var(--diorama-ink);
-  font-family: var(--diorama-font);
-  overflow: clip;
-}
-
-.diorama-view { position: absolute; inset: 0; }
-.diorama[data-labels="shown"] .diorama-view { inset: 3px clamp(112px, 16cqw, 174px) 13px; }
-.diorama-callouts, .diorama-leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.diorama-leaders g { visibility: hidden; opacity: .82; }
-.diorama-leaders polyline { fill: none; stroke: #f3d6a0; stroke-width: 1.2; stroke-linejoin: round; stroke-linecap: round; }
-.diorama-leaders circle { fill: #ffdf9b; stroke: #453725; stroke-width: 1.1; }
-.diorama-leaders:has(g[data-active="true"]) g:not([data-active="true"]) { opacity: .28; }
-.diorama-leaders g[data-active="true"] { opacity: 1; }
-.diorama-leaders g[data-active="true"] polyline { stroke: #ffe49f; stroke-width: 2.2; }
-.diorama-rail {
-  position: absolute;
-  inset-block: 10px 62px;
-  width: clamp(135px, 19cqw, 170px);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  gap: 5px;
-}
-.diorama-rail[data-side="left"] { left: 9px; }
-.diorama-rail[data-side="right"] { right: 9px; }
-.diorama-callout {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 100%;
-  min-height: 43px;
-  padding: 5px 8px;
-  border: 1px solid #637a81;
-  border-radius: 7px;
-  background: #22343b;
-  color: #fff6e6;
-  text-align: start;
-  font: inherit;
-  cursor: pointer;
-  pointer-events: auto;
-}
-.diorama-rail[data-side="left"] .diorama-callout { flex-direction: row-reverse; text-align: end; }
-.diorama-callout svg { flex: none; color: #e4c58f; }
-.diorama-callout span { min-width: 0; }
-.diorama-callout :is(strong,small) { display: block; }
-.diorama-callout strong { font-size: 14px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
-.diorama-callout small { margin-top: 1px; color: #c9d5d5; font-size: 12px; line-height: 1.35; }
-.diorama-callout[data-active="true"], .diorama-callout:hover { border-color: #ebc88d; background: #37494a; }
-.diorama-callout:focus-visible { outline: 2px solid #ffe098; outline-offset: 2px; }
-.diorama-callout:disabled { cursor: default; }
-
-.diorama-pins {
-  position: absolute;
-  z-index: 2;
-  inset: auto 10px 10px auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 8px;
-  border: 1px solid #8d9a9f;
-  border-radius: 6px;
-  background: #f8f8f4f5;
-  color: #283741;
-  font: inherit;
-  font-size: 12px;
-  min-height: 40px;
-  line-height: 1.45;
-  cursor: pointer;
-}
-.diorama:has(> .diorama-view > .diorama-fallback) :is(.diorama-pins,.diorama-callouts,.diorama-markers) { display: none; }
-.diorama:has(> .diorama-view > .diorama-fallback) .diorama-view { inset: 0; overflow: auto; background: #e8ecec; }
-.diorama-pins[aria-pressed="true"] { border-color: var(--diorama-hot); }
-.diorama-pins:focus-visible { outline: 2px solid var(--diorama-hot); outline-offset: 2px; }
-.diorama-marker-position:not([data-hot]) .diorama-dot {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.diorama canvas {
-  display: block;
-  cursor: grab;
-  touch-action: none;
-}
-
-.diorama canvas:active {
-  cursor: grabbing;
-}
-
-.diorama[data-hovering="true"] canvas {
-  cursor: pointer;
-}
-
-.diorama-markers {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.diorama-marker-position {
-  position: absolute;
-  top: 0;
-  left: 0;
-  visibility: hidden;
-}
-
-.diorama-marker-position[data-hot="true"] {
-  z-index: 1;
-}
-
-.diorama-marker {
-  position: relative;
-  width: max-content;
-}
-
-.diorama-dot,
-.diorama-fallback button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 9px;
-  border: 1px solid var(--diorama-boundary);
-  border-radius: 5px;
-  color: var(--diorama-ink);
-  background: var(--diorama-label);
-  box-shadow: 0 2px 12px var(--diorama-hot-shadow);
-  white-space: nowrap;
-  font-family: var(--diorama-font);
-  font-size: 10px;
-  font-weight: 590;
-  line-height: 1.35;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.diorama-dot:hover,
-.diorama-fallback button:hover,
-.diorama-fallback button[aria-pressed="true"] {
-  border-color: var(--diorama-hot);
-}
-
-.diorama-dot:focus-visible,
-.diorama-fallback button:focus-visible {
-  outline: 2px solid var(--diorama-hot);
-  outline-offset: 3px;
-}
-
-.diorama-dot[aria-disabled="true"],
-.diorama-fallback button[aria-disabled="true"] {
-  pointer-events: none;
-}
-
-.diorama-dot__lamp {
-  width: 6px;
-  height: 6px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--diorama-hot);
-  box-shadow: 0 0 0 2px var(--diorama-hot-ring);
-}
-
-.diorama-dot--shelf {
-  width: 13px;
-  height: 13px;
-  padding: 0;
-  justify-content: center;
-  border-radius: 50%;
-  box-shadow: none;
-}
-
-.diorama-dot--shelf .diorama-dot__lamp {
-  width: 4px;
-  height: 4px;
-  box-shadow: none;
-}
-
-.diorama-hover {
-  position: absolute;
-  z-index: 2;
   display: grid;
-  gap: 3px;
-  padding: 8px 11px;
-  bottom: calc(100% + 7px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: max-content;
-  max-width: 164px;
-  border: 1px solid var(--diorama-boundary);
-  border-radius: 7px;
-  color: var(--diorama-ink-soft);
-  background: var(--diorama-label);
-  box-shadow: 0 3px 16px var(--diorama-hot-shadow);
-  font-size: 11px;
-  line-height: 1.45;
-  pointer-events: none;
+  isolation: isolate;
+  grid-template: var(--rows) / var(--columns);
+  min-width: 0;
+  height: max(320px, var(--scene-view-height));
+  overflow: hidden;
+  color: #fff6e6;
+  background: radial-gradient(ellipse at 50% 46%, #3b4f54, #263a42 72%, #203139);
 }
+.diorama[data-labels="hidden"] { --canvas-column: 1 / -1; --canvas-row: 2; --rows: var(--caption-height) minmax(0,1fr); }
+.scene-fullscreen .diorama { height: 100%; }
+.diorama-view { position: relative; grid-column: var(--canvas-column); grid-row: var(--canvas-row); min-width: 0; min-height: 0; overflow: hidden; }
+.diorama canvas { display: block; cursor: grab; touch-action: none; }
+.diorama[data-hovering="true"] canvas { cursor: pointer; }
+.diorama canvas:active { cursor: grabbing; }
 
-.diorama-hover strong {
-  color: var(--diorama-ink);
+.diorama-callouts, .diorama-locations:not([hidden]) { display: contents; }
+.diorama-leaders { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+.diorama-leaders g { visibility: hidden; opacity: .48; }
+.diorama-leaders polyline { fill: none; stroke: #e6cc9d; stroke-width: 1; stroke-linejoin: round; }
+.diorama-leaders circle { fill: #ffe0a1; stroke: #514938; stroke-width: 1; }
+.diorama[data-hovering="true"] .diorama-leaders g:not([data-active="true"]) { opacity: .14; }
+.diorama-leaders g[data-active="true"] { opacity: 1; }
+.diorama-leaders g[data-active="true"] polyline { stroke: #ffdd96; stroke-width: 1.6; }
+
+.diorama-rail { z-index: 2; grid-row: 2; display: flex; flex-direction: column; justify-content: space-evenly; align-items: stretch; gap: 2px; padding: 0 var(--inset) 8px; pointer-events: none; }
+.diorama-rail--left { grid-column: 1; }
+.diorama-rail--right { grid-column: 3; }
+.diorama-pins, .diorama-callout, .diorama-focus {
+  color: #f9f2e7;
+  background: #243639f5;
+  border: 1px solid #738079;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px #13242845;
+  font: inherit;
 }
-
-.diorama-fallback,
-.diorama-loading {
-  padding: 24px;
+.diorama-callout, .diorama-pins {
+  display: inline-flex; align-items: center; gap: 7px; min-width: 0;
+  padding: 5px 9px; font-size: 12px; line-height: 1.35; font-weight: 560;
+  cursor: pointer; pointer-events: auto;
 }
-
-.diorama-fallback, .diorama-loading { color: #2c3840; }
-.diorama-loading { color: var(--diorama-ink-soft); }
-.diorama-fallback p {
-  font-size: 13px;
-  color: #49565c;
+.diorama-callout { min-height: 37px; text-align: start; }
+.diorama-callout svg, .diorama-pins svg { color: #dfbd80; flex: none; }
+.diorama-callout[data-active="true"], .diorama-callout:hover, .diorama-pins:hover {
+  color: #fff8e8; background: #3f4940; border-color: #e4c181;
 }
-
-.diorama-fallback__zones {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-block: 12px;
+.diorama-callouts button:focus-visible { outline: 2px solid #ffe1a1; outline-offset: 2px; }
+.diorama-callouts button:disabled { cursor: default; }
+.diorama-pins { position: absolute; z-index: 3; right: var(--inset); top: 10px; min-height: 36px; border-radius: 22px; }
+.diorama-focus-lane {
+  position: absolute; top: 0; left: var(--inset); right: calc(var(--inset) + 97px); height: var(--caption-height);
+  display: flex; align-items: center; z-index: 2; pointer-events: none;
 }
-
-@media (max-width: 600px) {
-  .diorama-pins { min-height: 44px; }
-  .diorama-dot {
-    min-height: 22px;
-    gap: 4px;
-    padding: 2px 5px;
-    font-size: 10px;
-  }
-
-  .diorama-dot--shelf {
-    width: 12px;
-    height: 12px;
-    min-height: 12px;
-    padding: 0;
-  }
-
-  .diorama-dot__lamp {
-    width: 4px;
-    height: 4px;
-  }
-
-  .diorama-dot--shelf .diorama-dot__lamp {
-    width: 3px;
-    height: 3px;
-  }
-
-  .diorama-hover {
-    max-width: 140px;
-    font-size: 11px;
-  }
-}
+.diorama-focus { width: max-content; max-width: min(280px, 100%); padding: 5px 10px; border-color: #c6a571; }
+.diorama-focus strong, .diorama-focus span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.diorama-focus strong { font-size: 12px; color: #ffdaa0; }
+.diorama-focus span { font-size: 11px; color: #f3eee4; }
 
 @container shop-scene (max-width: 640px) {
-  .scene-card:not(.scene-fullscreen) .stage:has(.diorama[data-labels="shown"]) { min-height: 525px; }
-  .diorama[data-labels="shown"] .diorama-view { inset: 117px 3px 204px; }
-  .diorama-rail {
-    inset-block: 8px 64px;
-    width: min(43%, 164px);
-    display: grid;
-    grid-template-rows: 56px 44px minmax(0, 1fr) repeat(3, 44px);
-    gap: 5px;
+  .diorama[data-labels="shown"] {
+    --columns: 1fr; --canvas-column: 1; --canvas-row: 3;
+    --rows: var(--caption-height) auto minmax(0,1fr) auto;
   }
-  .diorama-rail[data-side="left"] { left: 6px; }
-  .diorama-rail[data-side="right"] { right: 6px; }
-  .diorama-rail .diorama-callout:nth-child(3) { grid-row: 4; }
-  .diorama-rail[data-side="left"] .diorama-callout:nth-child(3), .diorama-rail[data-side="right"] .diorama-callout:nth-child(4) { grid-row: 5; }
-  .diorama-rail[data-side="left"] .diorama-callout:nth-child(4), .diorama-rail[data-side="right"] .diorama-callout:nth-child(5) { grid-row: 6; }
-  .diorama-callout { padding: 3px 6px; gap: 4px; min-height: 0; }
-  .diorama-callout strong { font-size: 13px; }
-  .diorama-callout svg { width: 14px; height: 14px; }
+  .scene-card:not(.scene-fullscreen) .diorama[data-labels="shown"] { height: calc(var(--scene-view-height) + 220px); }
+  .diorama-rail { grid-column: 1; display: grid; justify-content: center; gap: 4px 7px; padding: 3px var(--inset); }
+  .diorama-rail--left { grid-row: 2; grid-template-columns: repeat(2, minmax(0, 144px)); }
+  .diorama-rail--right { grid-row: 4; grid-template-columns: repeat(3, minmax(0, 132px)); padding-bottom: 8px; }
+  .diorama-callout { min-height: 40px; padding-inline: 6px; gap: 5px; justify-content: center; font-size: 12px; }
+  .diorama-rail--right .diorama-callout:last-child { grid-column: 3; }
 }
+@media (max-height: 500px) and (orientation: landscape) {
+  .scene-fullscreen .diorama { --caption-height: 43px; }
+  .scene-fullscreen .diorama[data-labels="shown"] {
+    --columns: 112px minmax(0,1fr) 112px; --rows: var(--caption-height) minmax(0,1fr); --canvas-row: 2; --canvas-column: 2;
+  }
+  .scene-fullscreen .diorama-rail { grid-row: 2; display: flex; justify-content: flex-start; gap: 2px; padding: 0 4px 3px; overflow-y: auto; pointer-events: auto; }
+  .scene-fullscreen .diorama-rail--left { grid-column: 1; }
+  .scene-fullscreen .diorama-rail--right { grid-column: 3; }
+  .scene-fullscreen .diorama-callout { flex: none; min-height: 27px; padding: 2px 5px; font-size: 11px; }
+  .scene-fullscreen .diorama-pins { top: 3px; }
+}
+/* Shelf keyboard targets stay with the models. Pointer interaction uses the meshes. */
+.diorama-markers { position: absolute; inset: 0; pointer-events: none; }
+.diorama-marker-position { position: absolute; top: 0; left: 0; visibility: hidden; }
+.diorama-dot { display: block; width: 13px; height: 13px; padding: 0; border-radius: 50%; border: 0; opacity: 0; pointer-events: none; }
+.diorama-dot:focus-visible { opacity: 1; background: transparent; outline: 2px solid #ffe098; box-shadow: 0 0 0 4px #35433d; }
+
+.diorama:has(> .diorama-view > .diorama-fallback) :is(.diorama-callouts,.diorama-markers) { display: none; }
+.diorama:has(> .diorama-view > .diorama-fallback) .diorama-view { overflow: auto; background: #e8ecec; }
+.diorama-fallback, .diorama-loading { padding: 24px; color: #2c3840; }
+.diorama-loading { color: #eef0ed; }
+.diorama-fallback p { font-size: 13px; color: #49565c; }
+.diorama-fallback__zones { display: flex; flex-wrap: wrap; gap: 6px; margin-block: 12px; }
+.diorama-fallback button {
+  min-height: 44px;
+  padding: 4px 9px;
+  border: 1px solid #7e8d93;
+  border-radius: 5px;
+  color: #fff9f0;
+  background: #26323c;
+  font: inherit;
+  cursor: pointer;
+}
+.diorama-fallback button:is(:hover,[aria-pressed="true"],:focus-visible) { outline: 2px solid #946323; }
+@container shop-scene (min-width: 641px) {
+  .diorama-rail { align-self: center; height: min(100%, clamp(265px, 44cqw, 490px)); }
+}
+.diorama-leaders g[data-active="true"]:not([data-line="focus"]) { opacity: .7; }
+.diorama:has(> .diorama-view > .diorama-fallback) .diorama-view { grid-column: 1 / -1; grid-row: 1 / -1; }
