@@ -1,0 +1,101 @@
+.dot-entry {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  text-align: start;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--white);
+}
+.dot-entry:hover, .dot-work-list button:hover { background: var(--soft); }
+.dot-entry-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  color: var(--ivory);
+  background: var(--navy);
+  border-radius: var(--radius);
+}
+.dot-entry-copy, .dot-work-copy { display: grid; min-width: 0; }
+.dot-entry-copy strong { font-size: 16px; }
+.dot-entry-copy > span, .dot-work-copy > span, .dot-shop-time, .dot-list-label { color: var(--muted); font-size: 14px; }
+.dot-entry-action {
+  margin-inline-start: auto;
+  color: var(--green);
+  font-weight: 650;
+  font-size: 14px;
+}
+.dot-panel { display: grid; min-width: 0; gap: 16px; }
+.dot-links, .dot-section-head, .dot-cadence, .dot-section-head h2 { display: flex; align-items: center; }
+.dot-links { gap: 8px; flex-wrap: wrap; }
+.dot-links a { min-height: 42px; font-size: 14px; text-decoration: none; padding-inline: 14px; }
+.dot-section-head { justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; }
+.dot-section-head h2 { gap: 8px; }
+.dot-section-head h2 svg { color: var(--accent); }
+.dot-cadence { gap: 5px; font-size: 14px; color: var(--muted); }
+.dot-result {
+  margin-top: 16px;
+  padding-inline-start: 9px;
+  border-inline-start: 3px solid var(--navy-line);
+  font-size: 15px;
+  font-weight: 600;
+}
+.dot-result-spike { border-color: var(--accent); color: var(--red); }
+.dot-numbers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+  margin: 14px 0 9px;
+  padding: 0;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--line);
+}
+.dot-numbers > div { min-width: 0; padding: 11px 12px; background: var(--paper); }
+.dot-numbers dt { font-size: 14px; color: var(--muted); }
+.dot-numbers dd {
+  margin: 3px 0 0;
+  font-size: clamp(20px, 2vw, 28px);
+  font-weight: 680;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.dot-numbers dd small, .dot-work-count small { font-size: 13px; font-weight: 500; }
+.dot-rule { margin-top: 14px; border-top: 1px solid var(--line); }
+.dot-rule summary { padding-top: 12px; cursor: pointer; color: var(--green); font-size: 14px; font-weight: 650; }
+.dot-rule p { margin-top: 7px; color: var(--muted); font-size: 14px; }
+.dot-list-label { margin-top: 9px; }
+.dot-work-list { margin: 12px 0 0; padding: 0; list-style: none; }
+.dot-work-list li { border-top: 1px solid var(--line); }
+.dot-work-list button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 11px 5px;
+  text-align: start;
+  color: var(--ink);
+  border: 0;
+  background: transparent;
+}
+.dot-work-copy > strong { color: var(--green); font-size: 15px; }
+.dot-work-list button:hover strong { text-decoration: underline; }
+.dot-work-count { flex-shrink: 0; font-weight: 680; font-variant-numeric: tabular-nums; }
+.dot-empty { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 12px; }
+@media (max-width: 500px) {
+  .dot-entry { gap: 9px; padding: 10px; }
+  .dot-entry-copy > span, .dot-entry-action { font-size: 13px; }
+  .dot-entry-action { white-space: nowrap; }
+  .dot-numbers { grid-template-columns: 1fr; }
+  .dot-numbers > div { padding: 8px 11px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 8px; }
+  .dot-numbers dd { margin: 0; }
+}

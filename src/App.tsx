@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type
 import { CalendarDays, PanelsTopLeft, BookOpen, Calculator, ChevronRight, Maximize2, Menu, Minimize2, RotateCcw, Settings2, X } from 'lucide-react';
 import { ShopIcon } from './ShopIcon';
 import { CatalogFeature, OverviewMetrics, ProductFinder } from './Overview';
+import { DotEntry, DotPanel } from './DotPanel';
 import { Briefs, Competitors, Memory, Sales, SalesChart, Settings } from './Business';
 import { Dialog, Empty, Notice } from './components';
 import { CaseDetail, CaseList, Inboxes, Manager } from './Manager';
@@ -14,7 +15,7 @@ const ShopScene = lazy(() => import('./scene/ShopScene'));
 const navigation = [
   { group: 'หน้าร้าน', items: [
     { id: 'overview', title: 'ภาพรวม' }, { id: 'scene', title: 'ร้าน 3D' },
-    { id: 'cases', title: 'เคส' }, { id: 'inbox', title: 'แชทลูกค้า' },
+    { id: 'cases', title: 'เคส' }, { id: 'inbox', title: 'แชทลูกค้า' }, { id: 'dot', title: 'แจ้งเตือน Dot' },
   ] },
   { group: 'การดำเนินงาน', items: [
     { id: 'stock', title: 'สต็อกกลาง' }, { id: 'supplies', title: 'วัสดุแพ็ก' },
@@ -32,10 +33,11 @@ type Layer = { kind: 'zone'; zone: SceneZone; variantId?: string; orderId?: stri
 const titles: Record<Page, string> = {
   overview: 'ภาพรวมร้าน', scene: 'ร้าน 3D', cases: 'เคสของร้าน', inbox: 'แชทลูกค้า', stock: 'สต็อกกลาง', supplies: 'วัสดุแพ็ก',
   plan: 'ลองปรับแผน', orders: 'ส่งของและของคืน', finance: 'การเงิน', insights: 'ผลการขายและสุขภาพบัญชี', settings: 'จัดการร้าน',
-  briefs: 'บรีฟข่าว', research: 'สินค้าและคู่แข่ง', memory: 'ความจำและกฎของร้าน',
+  briefs: 'บรีฟข่าว', research: 'สินค้าและคู่แข่ง', memory: 'ความจำและกฎของร้าน', dot: 'แจ้งเตือน Dot',
 };
 const descriptions: Record<Page, string> = {
   overview: '',
+  dot: 'ดูยอดซื้อที่เข้าเกณฑ์แจ้งเตือนและงานที่ควรทำวันนี้',
   scene: 'เลือกสินค้าและจุดทำงานเพื่อเปิดข้อมูลของร้าน',
   cases: 'เปิดเคสเพื่อดูหลักฐานและเลือกว่าจะทำอย่างไรต่อ',
   inbox: 'อ่านข้อความลูกค้าและเลือกผู้ดูแลแต่ละบทสนทนา',
@@ -58,6 +60,12 @@ const zones: Record<SceneZone, { title: string; page: Page }> = {
   computer: { title: 'โต๊ะจัดการร้าน', page: 'settings' },
 };
 const zoneTab: Partial<Record<SceneZone, string>> = { picking: 'picking', packing: 'packing', staging: 'ready', carrier: 'collected', returns: 'returns' };
+
+function pageFromLocation(): Page {
+  if (new URLSearchParams(location.search).has('dot')) return 'dot';
+  const saved = history.state?.shopPage;
+  return typeof saved === 'string' && Object.hasOwn(titles, saved) ? saved as Page : 'overview';
+}
 
 function useShopState() {
   const [state, setState] = useState<ShopState>();
@@ -132,7 +140,7 @@ function ProductSelector({ state, variants, selected, onSelect, children }: { st
 
 export default function App() {
   const { state, loadError, refresh } = useShopState();
-  const [page, setPage] = useState<Page>('overview');
+  const [page, setPage] = useState<Page>(pageFromLocation);
   const [mobile, setMobile] = useState<'menu' | 'manager' | undefined>();
   const [selectedId, setSelectedId] = useState('');
   const [inboxId, setInboxId] = useState<string>();
@@ -198,7 +206,7 @@ export default function App() {
     return () => { delete document.documentElement.dataset.drawer; document.removeEventListener('keydown', onKey); wide.removeEventListener('change', closeOnDesktop); prior?.focus({preventScroll:true}); };
   }, [mobile]);
 
-  function go(next: Page) {
+  const displayPage = useCallback((next: Page) => {
     setPage(next);
     setLayer(undefined);
     setMode(undefined);
@@ -208,6 +216,25 @@ export default function App() {
     setResearch(false);
     setDiscussPlan(false);
     window.scrollTo(0, 0);
+  }, []);
+  useEffect(() => {
+    function restorePage() {
+      displayPage(pageFromLocation());
+    }
+    window.addEventListener('popstate', restorePage);
+    return () => window.removeEventListener('popstate', restorePage);
+  }, [displayPage]);
+  function go(next: Page) {
+    if (next !== page && (next === 'dot' || page === 'dot')) {
+      const url = new URL(location.href);
+      if (next === 'dot') url.searchParams.set('dot', '');
+      else url.searchParams.delete('dot');
+      history.replaceState({ ...history.state, shopPage: page }, '');
+      history.pushState({ ...history.state, shopPage: next }, '', url);
+    } else if (next !== page && history.state?.shopPage) {
+      history.replaceState({ ...history.state, shopPage: next }, '');
+    }
+    displayPage(next);
   }
   const open = useCallback((zone: SceneZone, variantId?: string) => {
     if (variantId) setSelectedId(variantId);
@@ -262,7 +289,7 @@ export default function App() {
     setMode(undefined);
     setLayer(undefined);
     setFullscreen(false);
-    if (page !== 'overview' && page !== 'scene' && page !== 'plan') setPage('plan');
+    if (page !== 'overview' && page !== 'scene' && page !== 'plan') go('plan');
     scrollResults.current = true;
   }
 
@@ -322,6 +349,7 @@ export default function App() {
   switch (page) {
     case 'overview': content = <>
       <OverviewMetrics state={state} onSales={() => go('finance')} onOrders={() => go('insights')} onPacking={() => { setOrderStage('picking'); go('orders'); }}/>
+      <DotEntry onOpen={() => go('dot')}/>
       {selected && <CatalogFeature variant={selected} choose={() => setLayer({kind:'selector'})} showStock={() => open('product', selected.id)} plan={() => setMode('ads')}/>}
       {inputs && results}
       <div className="dashboard-lower">
@@ -330,6 +358,12 @@ export default function App() {
       </div>
       <section className="panel dashboard-sales"><div className="section-head"><h2>ยอดขายรายวัน</h2><button className="text-btn" onClick={() => go('insights')}>ดูรายงาน</button></div><SalesChart state={state} from={metrics.period?.from} to={metrics.period?.to}/></section>
     </>; break;
+    case 'dot': content = <DotPanel state={state} stale={Boolean(loadError || state.hosted?.stale)} onWork={area => {
+      if (area === 'orders' || area === 'returns') {
+        setOrderStage(area === 'returns' ? 'returns' : 'picking');
+        go('orders');
+      } else go(area);
+    }}/>; break;
     case 'scene': content = <>{scene}<section className="panel"><h2>เลือกสินค้าบนชั้น</h2>{productSelector}</section>{inputs && results}</>; break;
     case 'cases': content = <CaseList state={state} onOpen={item => openCase(item.id)}/>; break;
     case 'inbox': content = <Inboxes state={state} action={action} conversationId={inboxId} onSelect={setInboxId}/>; break;

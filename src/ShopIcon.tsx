@@ -29,6 +29,10 @@ const artwork = {
     <path d="M3.6 14.6h5.2l1.5 2h3.4l1.5-2h5.2v4.6H3.6z" fill={accent} stroke="none" />
     <path d="M3.4 14.5h5.7l1.2 1.8h3.4l1.2-1.8h5.7" />
   </>,
+  dot: <>
+    <path d="M4 16.5h16l-2.2-3.3v-3.1a5.8 5.8 0 0 0-11.6 0v3.1L4 16.5zM9.5 19a2.7 2.7 0 0 0 5 0"/>
+    <circle cx="17.8" cy="5.4" r="3" fill={accent} stroke="none"/>
+  </>,
   inbox: <>
     <path d="M3.4 4.3h15.2v10.3h-8.4l-4.7 3.6v-3.6H3.4z" />
     <path d="M6.5 7.6h8.6v2H6.5z" fill={accent} stroke="none" />
