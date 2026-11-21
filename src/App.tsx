@@ -228,7 +228,10 @@ export default function App() {
     if (next !== page && (next === 'dot' || page === 'dot')) {
       const url = new URL(location.href);
       if (next === 'dot') url.searchParams.set('dot', '');
-      else url.searchParams.delete('dot');
+      else {
+        url.searchParams.delete('dot');
+        if (url.hash === '#sales-watch' || url.hash === '#morning-work') url.hash = '';
+      }
       history.replaceState({ ...history.state, shopPage: page }, '');
       history.pushState({ ...history.state, shopPage: next }, '', url);
     } else if (next !== page && history.state?.shopPage) {

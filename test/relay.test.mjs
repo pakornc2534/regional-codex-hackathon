@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {createHash,randomUUID} from 'node:crypto'
 import {mkdtempSync,mkdirSync,rmSync,writeFileSync} from 'node:fs'
 import {join} from 'node:path'
+import {pathToFileURL} from 'node:url'
 import {tmpdir} from 'node:os'
 import worker from '../web-host/worker.mjs'
 import {encode} from '../web-host/codec.mjs'
@@ -193,7 +194,7 @@ globalThis.fetch = async (input,options) => {
   return result
 }
 `)
-  const relay = spawn(process.execPath,['--import',preload,'web-host/relay.mjs'],{
+  const relay = spawn(process.execPath,['--import',pathToFileURL(preload).href,'web-host/relay.mjs'],{
     env:{...process.env,SITE_URL:host,DEMO_PORT:String(storePort),RELAY_SECRET:'test-credential',RELAY_DIR:directory,CODEX_BIN:'/usr/bin/false'},
     stdio:['ignore','ignore','ignore']
   })

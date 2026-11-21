@@ -44,3 +44,21 @@ export function dotSnapshot(state) {
     ).length,
   }
 }
+
+/**
+ * Public, read-only projection for Dot. An offline relay keeps the last
+ * measured figures but cannot establish whether a spike is happening now.
+ * @param {Parameters<typeof dotSnapshot>[0] & {runId:string, revision?:number}} state
+ * @param {boolean} [stale]
+ */
+export function dotSummary(state, stale = false) {
+  const snapshot = dotSnapshot(state)
+  return {
+    runId: state.runId,
+    revision: state.revision ?? null,
+    clock: state.clock,
+    stale,
+    ...snapshot,
+    spike: stale ? null : snapshot.spike,
+  }
+}

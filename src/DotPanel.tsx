@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { Activity, BellRing, CalendarClock, Clock3, MessageCircle, Sunrise } from 'lucide-react';
-import { dotSnapshot } from '../shared/dot-monitor.mjs';
+import { dotSummary } from '../shared/dot-monitor.mjs';
 import { baht, count, timestamp, type ShopState } from './model';
 import './dot-panel.css';
 
@@ -18,7 +19,18 @@ export function DotPanel({ state, stale, onWork }: {
   stale: boolean;
   onWork: (area: WorkArea) => void;
 }) {
-  const snapshot = dotSnapshot(state);
+  const snapshot = dotSummary(state, stale);
+  useEffect(() => {
+    function showLinkedSection() {
+      const section = location.hash.slice(1);
+      if (section === 'sales-watch' || section === 'morning-work') {
+        document.getElementById(section)?.scrollIntoView({ block: 'start' });
+      }
+    }
+    showLinkedSection();
+    window.addEventListener('hashchange', showLinkedSection);
+    return () => window.removeEventListener('hashchange', showLinkedSection);
+  }, []);
   const queueDetail = snapshot.overdue === null ? 'ยังไม่ทราบจำนวนที่เลยกำหนด'
     : snapshot.overdue > 0 ? `เลยกำหนดแล้ว ${count(snapshot.overdue)} ออเดอร์ ควรจัดการก่อน` : 'ตรวจใบหยิบและเตรียมแพ็กสินค้า';
   const work: { area: WorkArea; title: string; detail: string; value: number; unit: string }[] = [
@@ -34,7 +46,7 @@ export function DotPanel({ state, stale, onWork }: {
       <a className="primary" href="https://chatgpt.com/dots" target="_blank" rel="noopener noreferrer"><MessageCircle size={17} aria-hidden="true"/>เปิด Dot ของฉัน</a>
       <a className="secondary" href="https://chatgpt.com/scheduled" target="_blank" rel="noopener noreferrer"><CalendarClock size={17} aria-hidden="true"/>จัดการตารางใน ChatGPT</a>
     </div>
-    <section className="panel dot-watch" aria-labelledby="dot-orders-heading">
+    <section id="sales-watch" className="panel dot-watch" aria-labelledby="dot-orders-heading">
       <div className="dot-section-head">
         <h2 id="dot-orders-heading"><Activity size={21} aria-hidden="true"/>เฝ้ายอดซื้อพุ่ง</h2>
         <span className="dot-cadence"><Clock3 size={15} aria-hidden="true"/>ทุก 15 นาที</span>
@@ -51,9 +63,10 @@ export function DotPanel({ state, stale, onWork }: {
       <details className="dot-rule">
         <summary>เกณฑ์แจ้งเตือนยอดพุ่ง</summary>
         <p>Dot เตือนเมื่อมีออเดอร์ชำระแล้วอย่างน้อย 5 ออเดอร์ในหนึ่งชั่วโมง และจำนวนออเดอร์สูงถึง 3 เท่าของค่าเฉลี่ยช่วงเดียวกันย้อนหลัง 7 วัน ถ้าค่าเฉลี่ยเป็นศูนย์ ใช้เกณฑ์ 5 ออเดอร์ โดยเตือนครั้งเดียวต่อช่วงที่ยอดพุ่ง</p>
+        <a className="dot-source" href="/api/dot-summary" target="_blank" rel="noopener noreferrer">ดูข้อมูลสรุปที่ Dot ใช้ตรวจ</a>
       </details>
     </section>
-    <section className="panel dot-morning" aria-labelledby="dot-work-heading">
+    <section id="morning-work" className="panel dot-morning" aria-labelledby="dot-work-heading">
       <div className="dot-section-head">
         <h2 id="dot-work-heading"><Sunrise size={21} aria-hidden="true"/>สรุปงานเช้า</h2>
         <span className="dot-cadence">ทุกวัน 08.00 น. เวลาไทย</span>

@@ -39,3 +39,36 @@ test('gateway requires relay secret and simulated snapshots, disables writes on 
  assert.equal((await invoke('/api/chat','POST',{},source)).status,503)
  env.PUBLIC_DEMO_ENABLED='false';assert.equal((await invoke('/api/state')).status,403)
 })
+
+test('Dot receives the same read-only shop counts and no order or owner records',async()=>{
+  const env={BUCKET:new Bucket(), PUBLIC_DEMO_ENABLED:'true', RELAY_SECRET:'test-only'}
+  const url='https://shop.example/api/dot-summary'
+  const read=()=>worker.fetch(new Request(url),env)
+  assert.equal((await read()).status,503)
+  const clock='2026-10-02T08:00:00+07:00'
+  const snapshot={
+    shop:{mode:'simulated'},runId:'seed-1',revision:8,clock,
+    orders:Array.from({length:5},(_,i)=>({id:'order-'+i,createdAt:clock,paymentStatus:'paid',paidAmount:200,customerId:'secret-customer'})),
+    metrics:{queueOrders:5},cases:[{status:'awaiting_approval'}],returns:[],supplies:[],
+    owner:{messages:[{text:'private conversation'}]},
+  }
+  const publish=await worker.fetch(new Request('https://shop.example/relay/snapshot',{
+    method:'POST',headers:{authorization:'Bearer test-only'},body:JSON.stringify(snapshot),
+  }),env)
+  assert.equal(publish.status,200)
+  const response=await read()
+  assert.equal(response.status,200)
+  assert.equal(response.headers.get('cache-control'),'no-store')
+  const expected={runId:'seed-1',revision:8,clock,stale:false,orders:5,baseline:0,amount:1000,spike:true,
+    overdue:null,queue:5,approval:1,returns:0,supplies:0}
+  assert.deepEqual(await response.json(),expected)
+  const write=await worker.fetch(new Request(url,{method:'POST'}),env)
+  assert.equal(write.status,405)
+  assert.equal(write.headers.get('allow'),'GET')
+  assert.equal((await env.BUCKET.list({prefix:'queue/',limit:1})).objects.length,0)
+  const heartbeat=await (await env.BUCKET.get('seen')).json()
+  await env.BUCKET.put('seen',JSON.stringify({...heartbeat,at:Date.now()-20000}))
+  assert.deepEqual(await (await read()).json(),{...expected,stale:true,spike:null})
+  env.PUBLIC_DEMO_ENABLED='false'
+  assert.equal((await read()).status,403)
+})

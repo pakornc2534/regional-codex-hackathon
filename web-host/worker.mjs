@@ -1,4 +1,5 @@
 import {decode,encode,bounded} from './codec.mjs'
+import {dotSummary} from '../shared/dot-monitor.mjs'
 
 const endpoints = new Set(['customer/ask','customer/status','chat','sim/command','sim/analyze','sim/growth','sim/impact','memories','reconnect','chat/cancel'])
 const json = (value,status = 200) => Response.json(value,{status,headers:{'cache-control':'no-store'}})
@@ -74,7 +75,10 @@ async function fetchWorker(req,env) {
   const ep = path.slice(5),bucket = env.BUCKET
   const publicDemo = env.PUBLIC_DEMO_ENABLED === 'true'
   if (!publicDemo && (!env.OWNER_SITE_ID || req.headers.get('oai-authenticated-user-id') !== env.OWNER_SITE_ID)) return json({error:'ต้องเข้าสู่ระบบเจ้าของร้าน'},403)
-  const wantState = req.method === 'GET' && ep === 'state'
+  if (ep === 'dot-summary' && req.method !== 'GET') {
+    return Response.json({error:'ต้องใช้ GET'},{status:405,headers:{allow:'GET','cache-control':'no-store'}})
+  }
+  const wantState = req.method === 'GET' && (ep === 'state' || ep === 'dot-summary')
   const [snapshot,heartbeat] = await Promise.all([wantState ? bucket.get('snapshot') : bucket.head('snapshot'),getJSON(bucket,'seen')])
   if (!snapshot) return json({error:'รอข้อมูลร้านจำลองจากเครื่องเจ้าของ'},503)
   const latest = generation(snapshot,heartbeat)
@@ -85,6 +89,7 @@ async function fetchWorker(req,env) {
   if (wantState) {
     const state = await decode(snapshot.body)
     if (state.shop?.mode !== 'simulated' || state.runId !== latest.runId) return json({error:'โหมดหรือรอบร้านไม่ตรงกัน'},403)
+    if (ep === 'dot-summary') return json(dotSummary(state,stale))
     state.hosted = {publicDemo,stale,ageMs,lastHeartbeat:latest.at,lastDataUpdate:latest.dataAt}
     if (stale) state.connection = {status:'disconnected',detail:'เครื่องเจ้าของออฟไลน์ กำลังแสดงข้อมูลล่าสุด'}
     return json(state)

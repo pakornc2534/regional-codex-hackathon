@@ -10,6 +10,8 @@ for(const item of names){const full=path.join('dist/client',item);if(!(await fs.
   assets['/'+item]=[types[path.extname(item)]||'application/octet-stream',gzipSync(await fs.readFile(full)).toString('base64')]}
 let src=await fs.readFile('web-host/worker.mjs','utf8')
 src=src.replace("import {decode,encode,bounded} from './codec.mjs'",(await fs.readFile('web-host/codec.mjs','utf8')).replace(/^export /gm,''))
+const dotMonitor=await fs.readFile('shared/dot-monitor.mjs','utf8')
+src=src.replace("import {dotSummary} from '../shared/dot-monitor.mjs'",()=>dotMonitor.replace(/^export /gm,''))
 src+='\nconst ASSET_MAP='+JSON.stringify(assets)+';\n'+`function serveAsset(path){
  const file=ASSET_MAP[path.endsWith('/')?path+'index.html':path];
  if(!file)return new Response('Not found',{status:404});

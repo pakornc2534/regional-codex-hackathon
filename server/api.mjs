@@ -2,6 +2,7 @@ import http from 'node:http'
 import {resolve,extname,sep} from 'node:path'
 import {randomUUID} from 'node:crypto'
 import {readFile} from 'node:fs/promises'
+import {dotSummary} from '../shared/dot-monitor.mjs'
 import {tickShop} from './demo-clock.mjs'
 import {openShop} from './persistence.mjs'
 import * as domain from './domain/index.mjs'
@@ -25,6 +26,10 @@ const server=http.createServer(async(req,res)=>{
     if(!allowed.has(req.headers.host))reject(403,'ชื่อโฮสต์ไม่ตรงกัน')
     if(req.headers.origin && ![...allowed].some(h=>req.headers.origin==='http://'+h))reject(403,'ต้นทางไม่ตรงกัน')
     const path=new URL(req.url,'http://localhost').pathname
+    if(path==='/api/dot-summary'){
+      if(req.method!=='GET'){res.setHeader('Allow','GET');reject(405,'ต้องใช้ GET')}
+      return json(dotSummary(domain.readWorld(shop.world),false))
+    }
     if(req.method==='GET'){
       if(path==='/api/state')return json({...domain.readWorld(shop.world),owner:shop.owner,connection:agent.status()})
       if(path==='/api/stamp')return json({version:boot+'-'+version})

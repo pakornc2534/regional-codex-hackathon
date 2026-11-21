@@ -71,6 +71,8 @@
 .dot-rule { margin-top: 14px; border-top: 1px solid var(--line); }
 .dot-rule summary { padding-top: 12px; cursor: pointer; color: var(--green); font-size: 14px; font-weight: 650; }
 .dot-rule p { margin-top: 7px; color: var(--muted); font-size: 14px; }
+.dot-source { display: inline-block; margin-top: 8px; color: var(--green); font-size: 14px; }
+.dot-panel section[id] { scroll-margin-top: 64px; }
 .dot-list-label { margin-top: 9px; }
 .dot-work-list { margin: 12px 0 0; padding: 0; list-style: none; }
 .dot-work-list li { border-top: 1px solid var(--line); }
