@@ -1,4 +1,5 @@
 import {decode,encode,bounded} from './codec.mjs'
+import {customerCatalog, catalogReply, customerCompleted, customerFaq, customerQuestion, matchCustomerProducts} from '../shared/customer-catalog.mjs'
 import {dotSummary} from '../shared/dot-monitor.mjs'
 
 const endpoints = new Set(['customer/ask','customer/status','chat','sim/command','sim/analyze','sim/growth','sim/impact','memories','reconnect','chat/cancel'])
@@ -78,13 +79,35 @@ async function fetchWorker(req,env) {
   if (ep === 'dot-summary' && req.method !== 'GET') {
     return Response.json({error:'ต้องใช้ GET'},{status:405,headers:{allow:'GET','cache-control':'no-store'}})
   }
+  const customerAsk = req.method === 'POST' && ep === 'customer/ask'
+  const validPost = () => req.headers.get('origin') === url.origin && req.headers.get('content-type')?.includes('application/json')
+  const readBody = async () => JSON.parse(new TextDecoder().decode(await bounded(req.body,32000)))
+  let customerBody
+  if (customerAsk) {
+    if (!validPost()) return json({error:'คำขอต้องมาจากหน้าเดโม'},403)
+    const input = await readBody()
+    customerBody = {message:customerQuestion(input ?? {})}
+    const answer = customerFaq(customerBody.message)
+    if (answer) return json(answer)
+  }
   const wantState = req.method === 'GET' && (ep === 'state' || ep === 'dot-summary')
-  const [snapshot,heartbeat] = await Promise.all([wantState ? bucket.get('snapshot') : bucket.head('snapshot'),getJSON(bucket,'seen')])
+  const [snapshot,heartbeat] = await Promise.all([(wantState || customerAsk) ? bucket.get('snapshot') : bucket.head('snapshot'),getJSON(bucket,'seen')])
   if (!snapshot) return json({error:'รอข้อมูลร้านจำลองจากเครื่องเจ้าของ'},503)
   const latest = generation(snapshot,heartbeat)
   if (latest.mode !== 'simulated') return json({error:'รอข้อมูลร้านจำลองจากเครื่องเจ้าของ'},503)
   const ageMs = Date.now() - latest.at, stale = ageMs > 15000
   const version = [latest.runId,latest.etag ?? latest.dataAt,stale].join('-')
+  if (customerAsk) {
+    const state = await decode(snapshot.body)
+    if (state.shop?.mode !== 'simulated' || state.runId !== latest.runId) return json({error:'โหมดหรือรอบร้านไม่ตรงกัน'},403)
+    const matches = matchCustomerProducts(customerBody.message, customerCatalog(state))
+    if (matches.length) {
+      const savedAt = new Date(latest.dataAt).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'})
+      const notice = stale ? '\n\nข้อมูลล่าสุดที่บันทึกไว้ ' + savedAt + ' เวลาไทย ราคาและสต็อกอาจเปลี่ยนไปครับ' : ''
+      return json(customerCompleted(catalogReply(matches) + notice))
+    }
+    if (stale) return json(customerCompleted('ช่วยพิมพ์ชื่อสินค้าหรือรหัส SKU ให้ตรงกับแค็ตตาล็อกครับ ตอนนี้ AI ช่วยค้นหาชื่อใกล้เคียงไม่ได้'))
+  }
   if (req.method === 'GET' && ep === 'stamp') return json({version})
   if (wantState) {
     const state = await decode(snapshot.body)
@@ -109,9 +132,9 @@ async function fetchWorker(req,env) {
     return json({status:'pending',jobId:id},202)
   }
   if (!endpoints.has(ep) || req.method !== 'POST') return json({error:'ไม่พบคำสั่ง'},404)
-  if (req.headers.get('origin') !== url.origin || !req.headers.get('content-type')?.includes('application/json')) return json({error:'คำขอต้องมาจากหน้าเดโม'},403)
+  if (!validPost()) return json({error:'คำขอต้องมาจากหน้าเดโม'},403)
   if (stale) return json({error:'เครื่องเจ้าของออฟไลน์ ลองใหม่เมื่อเชื่อมต่อแล้ว'},503)
-  const body = JSON.parse(new TextDecoder().decode(await bounded(req.body,32000)))
+  const body = customerBody ?? await readBody()
   if (!body || typeof body !== 'object' || Array.isArray(body)) return json({error:'รูปแบบข้อมูลไม่ถูกต้อง'},400)
   if (body.runId && body.runId !== latest.runId) return json({error:'ร้านเปลี่ยนรอบแล้ว'},409)
   const open = await bucket.list({prefix:'queue/',limit:10})
