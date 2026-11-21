@@ -14,9 +14,9 @@ For advertising, recovering the budget alone requires enough extra units to cove
 
 ## Decisions and model access
 
-The manager controller queues jobs and reads the shop in the room and case selected by the owner. It starts an ephemeral Codex thread with that context and recent conversation history, through stdio. The installed Codex app-server protocol is the integration contract. The model uses dynamic tools for shop evidence, calculations and proposals. When the owner selects an option the domain handler applies it, records the resulting receipt and provides verification. Preparation creates documents. Shipment progression uses separate human and simulated carrier commands.
+The manager controller queues jobs and reads the shop in the room and case selected by the owner. In local Codex mode it starts an ephemeral thread through stdio. On the VM it uses the OpenAI SDK with the same registered shop tools. Customer-reply cases receive the linked conversation, public selling fields, order status and scoped follow-ups. Owner memory and financial/planning tools are available in owner contexts. The model uses dynamic tools for shop evidence, calculations and proposals. When the owner selects an option the domain handler applies it, records the resulting receipt and provides verification. Preparation creates documents. Shipment progression uses separate human and simulated carrier commands.
 
-A dedicated Codex process reads the machine's selected model and uses its existing login. It launches with an empty working directory and environment list, disables shell, plugins, computer access, agents and MCP integrations, and denies approval requests. The app exposes a separate research mode for owner-selected live searches. Responses consume the connected Codex account's quota.
+A dedicated Codex process reads the machine's selected model and uses its existing login. It launches with an empty working directory and environment list, disables shell, plugins, computer access, agents and MCP integrations, and denies approval requests. The app exposes a separate research mode for owner-selected live searches. Local Codex requests consume the connected account’s quota. The VM uses a server-side API key. Each OpenAI completion attempt reserves one unit from the daily persistent meter before dispatch, including tool follow-ups. In local Codex mode the observable unit is a turn.
 
 ## Persistence and hosting
 
@@ -26,6 +26,8 @@ The deployable Worker serves the built frontend and a latest snapshot. The gatew
 
 The outbound relay launches another loopback-only process and seeds a separate persistent data directory. It publishes the complete snapshot on change and monitors reachability independently. R2 stores queue, claim, snapshot and result objects. A conditional write claims each command once. A relay journal preserves its reply before upload, and reports uncertainty if interrupted after a claim. Commands in an uncertain state require checking the shop before trying again. Snapshot and result transport accepts 2 MB of JSON or a gzip envelope up to 2 MB expanding to 8 MB.
 
-If the local machine stops responding for 15 seconds the Site displays its saved snapshot and stops taking new commands. Restart the relay from the same directory to resume. Old queue, result and run records require operator retention management for longer-lived installations.
+The VM relay uses an outbound connection and a persistent volume. The Worker limits model-bound requests before enqueueing and sends a rotating client digest to the single Node process, which enforces the shared per-client and global limits across Worker instances. Catalog and FAQ reads bypass these limits.
+
+If the relay stops responding for 15 seconds the Site displays its saved snapshot and stops taking new commands. Restart the relay from the same directory to resume. Old queue, result and run records require operator retention management for longer-lived installations.
 
 [Codex app-server protocol](https://developers.openai.com/codex/app-server/)

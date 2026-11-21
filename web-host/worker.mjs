@@ -1,12 +1,30 @@
 import {decode,encode,bounded} from './codec.mjs'
 import {customerCatalog, catalogReply, customerCompleted, customerFaq, customerQuestion, matchCustomerProducts} from '../shared/customer-catalog.mjs'
 import {dotSummary} from '../shared/dot-monitor.mjs'
+import {createAiRateLimit} from '../shared/ai-rate-limit.mjs'
 
 const endpoints = new Set(['customer/ask','customer/status','chat','sim/command','sim/analyze','sim/growth','sim/impact','memories','reconnect','chat/cancel'])
 const json = (value,status = 200) => Response.json(value,{status,headers:{'cache-control':'no-store'}})
 const getJSON = async (bucket,key) => (await bucket.get(key))?.json()
 const wait = ms => new Promise(resolve => setTimeout(resolve,ms))
 const safeJob = id => typeof id === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u.test(id)
+
+const edgeLimits = new WeakMap()
+async function admitAiRequest(req, env) {
+  let admit = edgeLimits.get(env)
+  if (!admit) {
+    admit = createAiRateLimit(env)
+    edgeLimits.set(env, admit)
+  }
+  // CF-Connecting-IP is set by the edge. Only a rotating digest travels in the queued job.
+  const address = req.headers.get('cf-connecting-ip') ?? 'unknown'
+  const day = new Date().toISOString().slice(0, 10)
+  const bytes = new TextEncoder().encode([env.RELAY_SECRET, day, address].join('\n'))
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+  const clientKey = Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('')
+  admit(clientKey)
+  return clientKey
+}
 
 function generation(snapshot,heartbeat) {
   const meta = snapshot.customMetadata
@@ -66,7 +84,11 @@ async function storedResult(bucket,id) {
   const object = await bucket.get('result/' + id)
   if (!object) return null
   const result = await decode(object.body)
-  return json(result.body,result.status)
+  const reply = json(result.body,result.status)
+  if (result.status === 429 && Number.isSafeInteger(result.retryAfter) && result.retryAfter > 0) {
+    reply.headers.set('Retry-After',String(result.retryAfter))
+  }
+  return reply
 }
 
 async function fetchWorker(req,env) {
@@ -137,11 +159,13 @@ async function fetchWorker(req,env) {
   const body = customerBody ?? await readBody()
   if (!body || typeof body !== 'object' || Array.isArray(body)) return json({error:'รูปแบบข้อมูลไม่ถูกต้อง'},400)
   if (body.runId && body.runId !== latest.runId) return json({error:'ร้านเปลี่ยนรอบแล้ว'},409)
+  const needsAi = ep === 'chat' || ep === 'customer/ask' || ep === 'reconnect'
+  const clientKey = needsAi ? await admitAiRequest(req, env) : undefined
   const open = await bucket.list({prefix:'queue/',limit:10})
   if (open.objects.length >= 10) return json({error:'คิวเต็ม กรุณารอสักครู่'},429)
   const id = crypto.randomUUID()
   const now = Date.now()
-  await bucket.put('queue/' + now + '-' + id,JSON.stringify({id,ep,body,runId:latest.runId,expiresAt:now + 45000}))
+  await bucket.put('queue/' + now + '-' + id,JSON.stringify({id,ep,body,clientKey,runId:latest.runId,expiresAt:now + 45000}))
   const deadline = now + 17500
   let delay = 400
   while (Date.now() < deadline) {
@@ -156,6 +180,9 @@ async function fetchWorker(req,env) {
 export default {
   async fetch(req,env) {
     try { return await fetchWorker(req,env) }
-    catch (error) { return json({error:'ประมวลผลไม่ได้ · ' + error.message},400) }
+    catch (error) {
+      if (error.status === 429) return Response.json({error:error.message}, {status:429, headers:{'retry-after':String(error.retryAfter),'cache-control':'no-store'}})
+      return json({error:'ประมวลผลไม่ได้ · ' + error.message},400)
+    }
   }
 }

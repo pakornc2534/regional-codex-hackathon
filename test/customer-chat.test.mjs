@@ -25,3 +25,19 @@ test('catalog, FAQ, and greetings bypass Codex while fuzzy product names use it'
   assert.equal(customer.status(job.id).source,'ai')
   assert.match(customer.status(job.id).text,/SONIC.*สินค้าหมด/)
 })
+
+test('model admission is checked only for a fuzzy lookup and a rejection leaves the customer able to retry', async () => {
+  const shop = {world:seedWorld()}
+  let calls = 0
+  const chat = customerChat(shop, {async run() { calls++;return '["SONIC"]' }})
+  const limit = () => { throw Error('คำถามถี่เกินไป') }
+  assert.equal(chat.submit({message:'SONIC'},limit).source,'catalog')
+  assert.equal(chat.submit({message:'ค่าส่งเท่าไหร่'},limit).source,'catalog')
+  assert.throws(()=>chat.submit({message:'พวงกุญแจโซนิคสีฟ้า'},limit),/ถี่เกินไป/)
+  assert.equal(calls,0)
+  const job = chat.submit({message:'พวงกุญแจโซนิคสีฟ้า'})
+  assert.equal(job.status,'pending')
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(chat.status(job.id).source,'ai')
+  assert.equal(calls,1)
+})

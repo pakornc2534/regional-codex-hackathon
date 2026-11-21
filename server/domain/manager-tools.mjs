@@ -101,7 +101,39 @@ export function addManagerProposal(world,{caseId,runId,expectedVersion,options,j
   return {world:next,proposal}
 }
 
+// The inbox model only sees fields that are appropriate for this customer.
+function replyContext(world,item) {
+  const {variant,conversation} = targets(world,item)
+  if (!conversation) notFound('ไม่พบบทสนทนาที่ผูกกับเคส')
+  const product = world.products.find(row => row.id === variant.productId)
+  const orders = world.orders
+    .filter(order => order.conversationId === conversation.id && order.customerId === conversation.customerId)
+    .map(({id,createdAt,items,paymentStatus,fulfillmentStatus}) => ({
+      id,createdAt,paymentStatus,fulfillmentStatus,
+      items:items.map(({variantId,quantity,unitPrice}) => ({variantId,quantity,unitPrice}))
+    }))
+  return {
+    shop:{name:world.shop.name,mode:world.shop.mode},runId:world.runId,revision:world.revision,clock:world.clock,
+    case:{id:item.id,type:item.type,status:item.status},
+    conversation:{
+      id:conversation.id,
+      messages:conversation.messages.slice(-30).map(({id,author,text,at}) => ({id,author,text,at}))
+    },
+    products:[{id:product.id,name:product.name,variants:[{
+      id:variant.id,sellerSku:variant.sellerSku,name:variant.name,price:variant.price,available:variant.available
+    }]}],
+    orders,
+    contextCoverage:{totalOrders:orders.length,returnedOrders:orders.length,omittedOrders:0,selection:'ออเดอร์ของลูกค้าในบทสนทนานี้'},
+    capabilities:{read:true,calculate:false,propose:!world.managerPaused && conversation.owner !== 'human',
+      allowedActions:allowed.product,executeRequiresOwnerChoiceOrPolicy:true}
+  }
+}
+
 export function managerContext(world,{caseId} = {}) {
+  if (caseId) {
+    const item = caseOf(world,caseId)
+    if (item.type === 'product') return replyContext(world,item)
+  }
   const state = readWorld(world)
   const item = caseId ? caseOf(state,caseId) : null
   const caseOrders = new Set(state.cases.map(row => row.entityRefs.orderId).filter(Boolean))

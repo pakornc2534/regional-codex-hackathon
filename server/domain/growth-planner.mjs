@@ -5,6 +5,14 @@ import {aggregateOrders,historicalDemand,supplyFacts} from './shop-business.mjs'
 const ceil = n => Math.ceil(n - 1e-9)
 const floor = n => Math.floor(n + 1e-9)
 const modes = new Set(['ads','flash','marketing','investment'])
+
+function shareForSku(free,selectedNeed,otherNeed) {
+  if (free === null) return null
+  const normalNeed = selectedNeed + otherNeed
+  // Share a scarce resource across the normal sales mix before rounding to whole units.
+  return normalNeed > free ? free * selectedNeed / normalNeed : free - otherNeed
+}
+
 function number(input,key,defaultValue,{max = 1_000_000_000,min = 0,whole = false,nullable = false} = {}) {
   const value = input[key] === undefined ? defaultValue : input[key]
   if (value === null && nullable) return null
@@ -162,34 +170,31 @@ export function growthPlan(world,input = {}) {
   const queue = aggregateOrders(world).queueUnits
   const supplies = supplyFacts(world,historical)
   const physicalMaterials = new Map(supplies.map(supply => [supply.id,supply.free]))
+  const normalUnits = item => Math.min(floor(historical[item.id].online * inputDays),
+    Math.max(0,item.available - ceil(historical[item.id].pos * inputDays)))
+  const selectedUnits = normalUnits(variant)
+  const otherVariants = variantsOf(world).filter(item => item.id !== variant.id)
+    .map(item => ({recipe:item.recipe,units:normalUnits(item)}))
+  const otherNormalUnits = otherVariants.reduce((sum,item) => sum + item.units,0)
   function allocate(days,extraSupply) {
-    const allowance = variantsOf(world).filter(item => item.id !== variant.id).map(item => ({
-      variant:item,normal:Math.min(floor(historical[item.id].online * inputDays),Math.max(0,item.available - ceil(historical[item.id].pos * inputDays)))
-    }))
-    const requested = allowance.reduce((sum,item) => sum + item.normal,0)
     const capacity = inputs.packingCapacity === null ? null : Math.max(0,inputs.packingCapacity * days - queue)
-    const supplyRequested = new Map(supplies.map(supply => [
-      supply.id,allowance.reduce((sum,item) => sum + item.normal * (item.variant.recipe?.[supply.id] ?? 0),0)
-    ]))
+    const preparationCapacity = capacity === null ? null : floor(shareForSku(capacity,selectedUnits,otherNormalUnits))
+    const otherUnits = capacity === null ? null : capacity - preparationCapacity
     const freeForPeriod = supplyId => {
       const amount = physicalMaterials.get(supplyId)
       return amount == null ? null : Math.max(0,amount + (extraSupply && supplyId === inputs.supplyId ? inputs.supplyQuantity : 0))
     }
-    const supplyRatios = supplies.flatMap(({id}) => {
-      const amount = freeForPeriod(id)
-      return amount === null || supplyRequested.get(id) === 0 ? [] : [amount / supplyRequested.get(id)]
-    })
-    const ratio = Math.max(0,Math.min(1,...supplyRatios,capacity === null || requested === 0 ? 1 : capacity / requested))
-    const apportioned = allowance.map(item => ({...item,units:floor(item.normal * ratio)}))
-    const otherUnits = apportioned.reduce((sum,item) => sum + item.units,0)
     const materials = Object.entries(variant.recipe ?? {}).map(([supplyId,perUnit]) => {
-      const reservedForOthers = roundMoney(apportioned.reduce((sum,item) => sum + item.units * (item.variant.recipe?.[supplyId] ?? 0),0))
       const free = freeForPeriod(supplyId)
-      const remaining = free === null ? null : Math.max(0,roundMoney(free - reservedForOthers))
-      return {supplyId,name:supplies.find(item => item.id === supplyId)?.name ?? supplyId,perUnit,free,reservedForOthers,remaining,capacity:remaining === null ? null : floor(remaining / perUnit)}
+      const otherNeed = otherVariants.reduce((sum,item) => sum + item.units * (item.recipe?.[supplyId] ?? 0),0)
+      const share = shareForSku(free,selectedUnits * perUnit,otherNeed)
+      const remaining = share === null ? null : floor(share * 100) / 100
+      const reservedForOthers = remaining === null ? null : roundMoney(free - remaining)
+      return {supplyId,name:supplies.find(item => item.id === supplyId)?.name ?? supplyId,perUnit,free,reservedForOthers,remaining,
+        capacity:remaining === null ? null : floor(remaining / perUnit)}
     })
     const materialCapacity = !materials.length || materials.some(item => item.capacity === null) ? null : Math.min(...materials.map(item => item.capacity))
-    return {materialCapacity,preparationCapacity:capacity === null ? null : Math.max(0,capacity - otherUnits),otherUnits,materials}
+    return {materialCapacity,preparationCapacity,otherUnits,materials}
   }
   const allocation = allocate(activeDays,activeDays > 0)
   const typical = inboundDelay ? allocate(baselineActiveDays,false) : allocate(activeDays,false)
