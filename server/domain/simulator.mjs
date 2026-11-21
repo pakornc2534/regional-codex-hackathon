@@ -1,4 +1,3 @@
-import {randomUUID} from 'node:crypto'
 
 export const dayMs = 86_400_000
 export const roundMoney = value => Math.round((value + Number.EPSILON) * 100) / 100
@@ -32,7 +31,7 @@ const rows = [
   ['car','โมเดล','รถโมเดลสะสม','unique','RARE-CAR','น้ำเงินพร้อมกล่อง',890,490,1,0,0,'large']
 ]
 const scope = (date, period) => ({source:'simulated',observedAt:date,period,completeness:'complete'})
-export function seedWorld({runId = 'sim-run-' + randomUUID()} = {}) {
+export function seedWorld({runId = 'sim-run-' + crypto.randomUUID()} = {}) {
   const products = []
   const orders = []
   const bySku = new Map()

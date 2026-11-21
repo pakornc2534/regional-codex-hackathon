@@ -287,3 +287,78 @@ test('public gateway limits AI requests by edge client and across clients, while
   assert.equal((await get('/api/state')).status,200)
   assert.equal((await (await post('/api/customer/ask',{message:'SONIC'},headers('192.0.2.10'))).json()).source,'catalog')
 })
+
+async function readyWithOfflineShop(t) {
+  const {bucket, get, post} = site({OPENAI_API_KEY:'test-provider-key'})
+  const world = readWorld(seedWorld())
+  const savedAt = Date.now() - 24 * 60 * 60 * 1000
+  await bucket.put('snapshot', await encode(world), {customMetadata:{runId:world.runId, mode:'simulated', dataAt:String(savedAt)}})
+  const searches = []
+  let registeredTools
+  t.mock.method(globalThis, 'fetch', async (url, request) => {
+    if (url === 'https://api.openai.com/v1/realtime/calls') {
+      registeredTools = JSON.parse(request.body.get('session')).tools
+      return new Response('v=0\r\n', {headers:{location:'/v1/realtime/calls/rtc_ready_test'}})
+    }
+    assert.equal(url, 'https://api.openai.com/v1/responses')
+    const research = JSON.parse(request.body)
+    searches.push(research)
+    return Response.json({output:[
+      {type:'web_search_call',status:'completed'},
+      {type:'message',content:[{type:'output_text',text:'ข้อมูลสเปกจากผู้ผลิต',
+        annotations:[{type:'url_citation',url:'https://maker.example/robot',title:'สเปกโมเดล'}]}]}
+    ]})
+  })
+  const start = await post('/api/ready/session', {sdp:'v=0\r\nm=audio 9 RTP/AVP 0\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\n'}, appHeaders)
+  assert.equal(start.status, 200)
+  const {session} = await start.json()
+  const tool = (name, args = {}, extra = {}) => post('/api/ready/tool', {session,name,arguments:args,...extra}, appHeaders)
+  return {bucket, get, tool, world, searches, savedAt, registeredTools}
+}
+
+test('hosted Ready exposes the store readers and uses the saved shop and on-screen selection with the relay offline', async t => {
+  const {bucket, get, tool, world, searches, savedAt, registeredTools} = await readyWithOfflineShop(t)
+  const names = registeredTools.map(tool => tool.name)
+  assert.equal(new Set(names).size, 28)
+  assert.ok(registeredTools.every(tool => tool.type === 'function' && tool.parameters.additionalProperties === false))
+  const dotBefore = await (await get('/api/dot-summary')).json()
+  const args = {read_growth:{variantId:world.products[0].variants[0].id,mode:'ads'}, read_case_detail:{id:world.cases[0].id}}
+  const robot = world.products.flatMap(row => row.variants).find(row => row.sellerSku === 'ROBOT')
+  const view = {page:'scene',selectedVariantId:robot.id}
+  for (const name of names.filter(name => name.startsWith('read_'))) {
+    const response = await tool(name, args[name] ?? {}, {view})
+    assert.equal(response.status, 200, name)
+    const {result} = await response.json()
+    assert.equal(result.error, undefined, name)
+    assert.equal(result.snapshotStale, true, name)
+    assert.equal(result.snapshotSavedAt, new Date(savedAt).toISOString(), name)
+    if (name === 'read_current_view') assert.equal(result.selectedProduct.sellerSku, 'ROBOT')
+    if (name === 'read_summary') assert.equal(result.data.sales.total, world.metrics.sales7d)
+  }
+  assert.deepEqual(searches, [])
+  assert.equal((await tool('read_inventory', {limit:5000})).status, 400)
+  assert.equal((await tool('write_inventory')).status, 400)
+  assert.equal((await tool('read_inventory', {}, {session:randomUUID()})).status, 401)
+  assert.deepEqual(await (await get('/api/dot-summary')).json(), dotBefore)
+  assert.deepEqual((await bucket.list({prefix:'queue/',limit:20})).objects, [])
+})
+
+test('hosted Ready researches only named public products, returns dated citations and enforces the session search limit', async t => {
+  const {tool, searches} = await readyWithOfflineShop(t)
+  const ask = questions => tool('search_public_market', {subjects:['ROBOT'],focus:'competitor_prices'}, {questions})
+  const privateOnly = await (await ask(['ช่วยเทียบราคา ROBOT เฉพาะข้อมูลในร้าน'])).json()
+  assert.ok(privateOnly.result.error)
+  assert.deepEqual(searches, [])
+  for (let count = 0; count < 3; count++) {
+    const result = await (await ask(['SKU ROBOT เหลือกี่ชิ้น ต้นทุนและราคาขายเท่าไร', 'คู่แข่งขายรุ่นนี้เท่าไหร่'])).json()
+    assert.equal(result.result.source,'public_web')
+    assert.ok(Number.isFinite(Date.parse(result.searchedAt)))
+    assert.equal(result.searchedAt, result.result.searchedAt)
+    assert.deepEqual(result.sources, [{url:'https://maker.example/robot',title:'สเปกโมเดล'}])
+    assert.deepEqual(JSON.parse(searches[count].input),{productsOrCategories:['โมเดลหุ่นยนต์ 1/144']})
+    assert.deepEqual(searches[count].tool_choice,{type:'web_search'})
+  }
+  const exhausted = await (await ask(['ช่วยวิเคราะห์คู่แข่งของ ROBOT'])).json()
+  assert.match(exhausted.result.error,/ครบสามครั้ง/)
+  assert.equal(searches.length,3)
+})

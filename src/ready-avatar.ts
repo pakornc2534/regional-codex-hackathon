@@ -3,13 +3,13 @@ import { z } from 'zod';
 import pcmWorklet from './ready-avatar-pcm.js?url';
 
 export type BrowserAvatarStage = 'connecting' | 'ready' | 'audio';
-type Credentials = { room: string; identity: string };
+type Credentials = { room: string; identity: string } | { session: string };
 type AudioFrame = { buffer: ArrayBuffer; peak: number };
 
 const tokenSchema = z.object({ sessionToken: z.string().min(1) });
 
-export function warmAvatarAudio() {
-  if (!['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) return;
+export function warmAvatarAudio(hosted = false) {
+  if (!hosted && !['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) return;
   try {
     const context = new AudioContext({ sampleRate: 24000 });
     void context.resume().catch(() => {});
@@ -126,7 +126,7 @@ export function createBrowserAvatar(
     const timeout = window.setTimeout(fail, 25_000);
     try {
       const [response, sdk] = await Promise.all([
-        fetch('/api/manager/live/avatar', {
+        fetch('session' in credentials ? '/api/ready/avatar' : '/api/manager/live/avatar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(credentials),

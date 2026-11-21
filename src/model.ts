@@ -49,7 +49,7 @@ const stateSchema = z.object({
   }),
   connection: z.object({ status: s, detail: s.optional() }),
   liveManagerAvailable: z.boolean().optional(),
-  hosted: z.object({ publicDemo: z.boolean().optional(), stale: z.boolean().optional(), ageMs: n.nullable().optional() }).optional(),
+  hosted: z.object({ publicDemo: z.boolean().optional(), stale: z.boolean().optional(), ageMs: n.nullable().optional(), lastDataUpdate: n.nullish() }).optional(),
 });
 export type ShopState = z.infer<typeof stateSchema>;
 export type Product = ShopState['products'][number];

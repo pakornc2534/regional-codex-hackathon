@@ -4,8 +4,7 @@ import type { RemoteParticipant, RemoteTrack, Room } from 'livekit-client';
 import { z } from 'zod';
 import { createReadyMicGate } from './ready-mic-gate';
 import { createBrowserAvatar, warmAvatarAudio, type BrowserAvatarStage } from './ready-avatar';
-import type { Page } from './workspaces';
-import type { PlanInputs } from './model';
+import { createCloudCall, searchSources, type ReadyMessage as Message, type ShopView } from './ready-cloud';
 import './ready-manager.css';
 
 const sessionSchema = z.object({
@@ -19,17 +18,6 @@ const sessionSchema = z.object({
   assistantIdentity: z.string().optional(),
   browserAvatar: z.boolean().optional(),
 });
-const searchSources = z.object({
-  sources: z.array(z.object({
-    title: z.string().min(1).max(280),
-    url: z.url().refine(value => ['https:', 'http:'].includes(new URL(value).protocol)),
-  })).max(12),
-  searchedAt: z.iso.datetime().optional(),
-});
-type Source = z.infer<typeof searchSources>['sources'][number];
-type Message =
-  | { id: string; kind: 'chat'; from: 'owner' | 'manager'; text: string; final?: boolean }
-  | { id: string; kind: 'sources'; sources: Source[]; searchedAt?: string };
 type Call = { phase: 'idle' | 'connecting' | 'waiting' | 'connected' | 'reconnecting'; error?: string };
 
 const statusText: Record<Call['phase'], string> = {
@@ -41,13 +29,14 @@ const statusText: Record<Call['phase'], string> = {
 };
 const avatar = '/ready-manager.webp';
 const readyStates = new Set(['listening', 'thinking', 'speaking']);
-const searchDate = new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
+const bangkokDate = new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
 type RoomCredentials = Pick<z.infer<typeof sessionSchema>, 'room' | 'identity'>;
 type FirstTurn = { kind: 'text'; text: string } | { kind: 'mic' };
 type ActiveCall = {
   firstTurn?: FirstTurn;
   micWanted: boolean;
   room?: Room;
+  cloud?: ReturnType<typeof createCloudCall>;
   abort: AbortController;
   credentials?: RoomCredentials;
   avatarAudio?: AudioContext;
@@ -58,6 +47,7 @@ type ActiveCall = {
 function releaseCall(call: ActiveCall | undefined) {
   call?.abort.abort();
   call?.micGate?.close();
+  call?.cloud?.close();
   if (call?.avatar) call.avatar.close();
   else if (call?.avatarAudio?.state !== 'closed') void call?.avatarAudio?.close().catch(() => {});
   void call?.room?.disconnect().catch(() => {});
@@ -71,10 +61,8 @@ function releaseCall(call: ActiveCall | undefined) {
   }
 }
 
-type ShopView = { page: Page; selectedVariantId?: string; plan?: PlanInputs; conversationId?: string };
-
-export function ReadyManager({ shopName, shopView, hidden = false, onOpenTextManager }: {
-  shopName: string; shopView: ShopView; hidden?: boolean; onOpenTextManager: () => void;
+export function ReadyManager({ shopName, shopView, hosted, snapshotSavedAt, hidden = false, onOpenTextManager }: {
+  shopName: string; shopView: ShopView; hosted: boolean; snapshotSavedAt?: number | null; hidden?: boolean; onOpenTextManager: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [call, setCall] = useState<Call>({ phase: 'idle' });
@@ -124,6 +112,7 @@ export function ReadyManager({ shopName, shopView, hidden = false, onOpenTextMan
     if (!current.micWanted) return;
     current.micWanted = false;
     setMic('off');
+    void current.cloud?.setMic(false).catch(() => {});
     void current.room?.localParticipant.setMicrophoneEnabled(false).catch(() => {
       if (active.current === current) stopCall();
     });
@@ -190,7 +179,7 @@ export function ReadyManager({ shopName, shopView, hidden = false, onOpenTextMan
 
   async function startCall(firstTurn: FirstTurn) {
     if (active.current) return;
-    const current: ActiveCall = { firstTurn, micWanted: false, abort: new AbortController(), avatarAudio: warmAvatarAudio() };
+    const current: ActiveCall = { firstTurn, micWanted: false, abort: new AbortController(), avatarAudio: warmAvatarAudio(hosted) };
     active.current = current;
     setCall({ phase: 'connecting' });
     const timeout = window.setTimeout(() => {
@@ -198,6 +187,43 @@ export function ReadyManager({ shopName, shopView, hidden = false, onOpenTextMan
     }, 30000);
     current.abort.signal.addEventListener('abort', () => window.clearTimeout(timeout), { once: true });
     try {
+      if (hosted) {
+        const audio = document.createElement('audio');
+        audio.autoplay = true;
+        playback.current?.append(audio);
+        const cloud = createCloudCall({
+          audio, signal: current.abort.signal, view: () => view.current, record,
+          connected: () => {
+            window.clearTimeout(timeout);
+            setMessages([]);
+            setCall({ phase: 'connected' });
+          },
+          ended: stopCall,
+          notice: error => setCall({ phase: 'connected', error }),
+          micPaused: setMicPaused, audioBlocked: setAudioBlocked,
+          avatar: (session, enabled) => {
+            if (!enabled || !video.current || !current.avatarAudio) {
+              setAvatarMode('audio');
+              void current.avatarAudio?.close().catch(() => {});
+              current.avatarAudio = undefined;
+              return;
+            }
+            current.avatar = createBrowserAvatar(video.current, current.avatarAudio, (stage, ownsAudio) => {
+              if (active.current !== current) return;
+              setBrowserAvatarStage(stage);
+              setHasVideo(stage === 'ready');
+              setAvatarAudioBlocked(stage === 'ready' && !ownsAudio);
+              audio.muted = ownsAudio;
+              if (!ownsAudio) void cloud.playAudio();
+            }, () => cloud.notePlayback());
+            void current.avatar.start({ session });
+          },
+          track: track => current.avatar?.attachTrack(track),
+        });
+        current.cloud = cloud;
+        await cloud.connect();
+        return;
+      }
       const response = await fetch('/api/manager/live/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -408,12 +434,21 @@ export function ReadyManager({ shopName, shopView, hidden = false, onOpenTextMan
   }
 
   async function changeMic(current: ActiveCall, enable: boolean) {
-    if (!current.room) return;
+    if (!current.cloud && !current.room) return;
     current.micWanted = enable;
     const room = current.room;
     setMic('requesting');
     setCall({ phase: 'connected' });
     try {
+      if (current.cloud) {
+        await current.cloud.setMic(enable);
+        if (active.current === current && current.micWanted === enable) {
+          setMic(enable ? 'on' : 'off');
+          setMicSubscribed(enable);
+        }
+        return;
+      }
+      if (!room) return;
       const publication = await room.localParticipant.setMicrophoneEnabled(enable, {
         echoCancellation: true, noiseSuppression: true, autoGainControl: true,
       });
@@ -443,12 +478,13 @@ export function ReadyManager({ shopName, shopView, hidden = false, onOpenTextMan
   }
 
   async function sendText(current: ActiveCall, text: string) {
-    if (!current.room) return;
+    if (!current.room && !current.cloud) return;
     setSending(true);
     setCall({ phase: 'connected' });
     try {
       current.micGate?.audio();
-      await current.room.localParticipant.sendText(text, { topic: 'lk.chat' });
+      if (current.cloud) current.cloud.sendText(text);
+      else await current.room?.localParticipant.sendText(text, { topic: 'lk.chat' });
       if (active.current !== current) return;
       record({ id: crypto.randomUUID(), kind: 'chat', from: 'owner', text });
       setDraft(value => value.trim() === text ? '' : value);
@@ -487,6 +523,7 @@ export function ReadyManager({ shopName, shopView, hidden = false, onOpenTextMan
           <button type="button" ref={closeButton} className="ready-icon" onClick={minimize} aria-label="ย่อแชทพร้อม" title="ย่อแชท"><Minus size={18}/></button>
         </header>
 
+        {snapshotSavedAt != null && <p className="ready-snapshot">ข้อมูลร้านบันทึกล่าสุด <time dateTime={new Date(snapshotSavedAt).toISOString()}>{bangkokDate.format(snapshotSavedAt)} น. เวลาไทย</time></p>}
         <div className="ready-stage">
           <img src={avatar} alt="ภาพผู้จัดการร้านพร้อม" width={480} height={320} hidden={hasVideo}/>
           <video ref={video} autoPlay playsInline hidden={!hasVideo && browserAvatarStage !== 'connecting'} aria-label="วิดีโอสดของพร้อม"
@@ -515,13 +552,14 @@ export function ReadyManager({ shopName, shopView, hidden = false, onOpenTextMan
                 <b>แหล่งข้อมูลจากเว็บ</b><ul>{message.sources.map(source =>
                   <li key={source.url + source.title}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a></li>
                 )}</ul>
-                {message.searchedAt && <time dateTime={message.searchedAt}>ค้นเมื่อ {searchDate.format(new Date(message.searchedAt))} เวลาไทย</time>}
+                {message.searchedAt && <time dateTime={message.searchedAt}>ค้นเมื่อ {bangkokDate.format(new Date(message.searchedAt))} เวลาไทย</time>}
               </div>)}
         </div>
 
         {(avatarAudioBlocked || (audioBlocked && browserAvatarStage !== 'ready')) &&
           <button type="button" className="ready-audio" onClick={() => {
             void active.current?.room?.startAudio().catch(() => setAudioBlocked(true));
+            void active.current?.cloud?.playAudio();
             void active.current?.avatar?.enableAudio();
           }}><Volume2 size={17}/> เปิดเสียงคำตอบ</button>}
         {call.error && <div className="ready-error" role="alert">{call.error}</div>}

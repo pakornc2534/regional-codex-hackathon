@@ -1,3 +1,5 @@
+import {handleReadySession,reapExpiredReadySession} from './ready-session.mjs'
+import {handleReadyTool} from './ready-tools.mjs'
 import {decode,encode,bounded} from './codec.mjs'
 import {customerCatalog, catalogReply, customerCompleted, customerFaq, customerQuestion, matchCustomerProducts} from '../shared/customer-catalog.mjs'
 import {dotSummary} from '../shared/dot-monitor.mjs'
@@ -91,7 +93,7 @@ async function storedResult(bucket,id) {
   return reply
 }
 
-async function fetchWorker(req,env) {
+async function fetchWorker(req,env,ctx) {
   const url = new URL(req.url),path = url.pathname
   if (path.startsWith('/relay/')) return relay(req,env,path.slice(7))
   if (!path.startsWith('/api/')) return serveAsset(path)
@@ -104,6 +106,15 @@ async function fetchWorker(req,env) {
   const customerAsk = req.method === 'POST' && ep === 'customer/ask'
   const validPost = () => req.headers.get('origin') === url.origin && req.headers.get('content-type')?.includes('application/json')
   const readBody = async () => JSON.parse(new TextDecoder().decode(await bounded(req.body,32000)))
+  const readyTool = ep === 'ready/tool'
+  if (ep.startsWith('ready/')) {
+    if (req.method !== 'POST') return json({error:'ต้องใช้ POST'},405)
+    if (!validPost()) return json({error:'คำขอต้องมาจากหน้าเดโม'},403)
+    if (!readyTool) return handleReadySession(req,env,path)
+  }
+  if (env.OPENAI_API_KEY && ctx?.waitUntil && ep === 'stamp') {
+    ctx.waitUntil(reapExpiredReadySession(env))
+  }
   let customerBody
   if (customerAsk) {
     if (!validPost()) return json({error:'คำขอต้องมาจากหน้าเดโม'},403)
@@ -113,7 +124,7 @@ async function fetchWorker(req,env) {
     if (answer) return json(answer)
   }
   const wantState = req.method === 'GET' && (ep === 'state' || ep === 'dot-summary')
-  const [snapshot,heartbeat] = await Promise.all([(wantState || customerAsk) ? bucket.get('snapshot') : bucket.head('snapshot'),getJSON(bucket,'seen')])
+  const [snapshot,heartbeat] = await Promise.all([(wantState || customerAsk || readyTool) ? bucket.get('snapshot') : bucket.head('snapshot'),getJSON(bucket,'seen')])
   if (!snapshot) return json({error:'รอข้อมูลร้านจำลองจากเครื่องเจ้าของ'},503)
   const latest = generation(snapshot,heartbeat)
   if (latest.mode !== 'simulated') return json({error:'รอข้อมูลร้านจำลองจากเครื่องเจ้าของ'},503)
@@ -131,11 +142,13 @@ async function fetchWorker(req,env) {
     if (stale) return json(customerCompleted('ช่วยพิมพ์ชื่อสินค้าหรือรหัส SKU ให้ตรงกับแค็ตตาล็อกครับ ตอนนี้ AI ช่วยค้นหาชื่อใกล้เคียงไม่ได้'))
   }
   if (req.method === 'GET' && ep === 'stamp') return json({version})
-  if (wantState) {
+  if (wantState || readyTool) {
     const state = await decode(snapshot.body)
     if (state.shop?.mode !== 'simulated' || state.runId !== latest.runId) return json({error:'โหมดหรือรอบร้านไม่ตรงกัน'},403)
     if (ep === 'dot-summary') return json(dotSummary(state,stale))
     state.hosted = {publicDemo,stale,ageMs,lastHeartbeat:latest.at,lastDataUpdate:latest.dataAt}
+    if (readyTool) return handleReadyTool(req,env,state)
+    state.liveManagerAvailable = publicDemo && Boolean(env.OPENAI_API_KEY)
     if (stale) state.connection = {status:'disconnected',detail:'เครื่องเจ้าของออฟไลน์ กำลังแสดงข้อมูลล่าสุด'}
     return json(state)
   }
@@ -178,8 +191,8 @@ async function fetchWorker(req,env) {
 }
 
 export default {
-  async fetch(req,env) {
-    try { return await fetchWorker(req,env) }
+  async fetch(req,env,ctx) {
+    try { return await fetchWorker(req,env,ctx) }
     catch (error) {
       if (error.status === 429) return Response.json({error:error.message}, {status:429, headers:{'retry-after':String(error.retryAfter),'cache-control':'no-store'}})
       return json({error:'ประมวลผลไม่ได้ · ' + error.message},400)

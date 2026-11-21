@@ -117,7 +117,7 @@ function ProductSelector({ state, variants, selected, onSelect, children }: { st
 
 export default function App() {
   const { state, loadError, refresh } = useShopState();
-  const liveManager = Boolean(state?.liveManagerAvailable && !state.hosted);
+  const liveManager = Boolean(state?.liveManagerAvailable);
   const mobileTabs = useRef<HTMLDivElement>(null);
   const hasWorkspace = Boolean(state);
   useLayoutEffect(() => {
@@ -446,7 +446,8 @@ export default function App() {
       onDraft={next => planDrafts.current.set(`${selected.id}:${mode}`,next)}
       onClose={() => setMode(undefined)} onSubmit={submitPlan}/>}
     {!selected && page === 'plan' && <Empty>ร้านนี้ยังไม่มีสินค้าให้ประเมิน</Empty>}
-    {liveManager && <ReadyManager shopName={state.shop.name} shopView={{
+    {liveManager && <ReadyManager hosted={Boolean(state.hosted?.publicDemo)}
+      snapshotSavedAt={state.hosted?.stale ? state.hosted.lastDataUpdate : undefined} shopName={state.shop.name} shopView={{
       page,
       selectedVariantId: showsSelectedProduct ? selected?.id : undefined,
       plan: showsSelectedProduct && evaluation.result && !evaluation.loading && !evaluation.stale ? inputs : undefined,
