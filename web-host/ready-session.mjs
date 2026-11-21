@@ -93,7 +93,7 @@ function sessionConfig(env, shop) {
   const names = (shop.products ?? []).slice(0, 40).map(product => String(product.name ?? '').slice(0, 70)).filter(Boolean)
   const transcription = {
     model: 'gpt-4o-mini-transcribe',
-    prompt: 'Transcribe the speaker in the original language (Thai, English or Mandarin Chinese). Catalog names: ' + names.join(' / ').slice(0, 900)
+    prompt: 'Transcribe the speaker in the original language (Thai or English). Catalog names: ' + names.join(' / ').slice(0, 900)
   }
   return {
     type: 'realtime', model: env.OPENAI_REALTIME_MODEL || 'gpt-realtime-2.1',
