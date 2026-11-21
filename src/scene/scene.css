@@ -1,10 +1,9 @@
-/* Hallmark · v2.0 · custom live diorama · signature: working collectible gallery with resin, brass, and terracotta */
 .diorama {
-  --diorama-backdrop: #1d2b34;
-  --diorama-halo: #36444b;
+  --diorama-backdrop: #153532;
+  --diorama-halo: #52756c;
   --diorama-ink: #f6edd9;
-  --diorama-ink-soft: #ded3bb;
-  --diorama-label: #20322ef2;
+  --diorama-ink-soft: #e2e5d6;
+  --diorama-label: #102e2aea;
   --diorama-boundary: #d9bb8061;
   --diorama-hot: #f0b870;
   --diorama-hot-ring: #f0b8703b;
@@ -14,11 +13,36 @@
   isolation: isolate;
   width: 100%;
   height: 100%;
-  min-height: 260px;
-  background: radial-gradient(ellipse at 51% 49%, var(--diorama-halo), var(--diorama-backdrop) 74%);
+  min-height: 0;
+  background: radial-gradient(ellipse at 49% 39%, var(--diorama-halo), var(--diorama-backdrop) 83%);
   color: var(--diorama-ink);
   font-family: var(--diorama-font);
   overflow: clip;
+}
+
+.diorama-pins {
+  position: absolute;
+  z-index: 2;
+  inset: auto 10px 10px auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid #e6e6ce4d;
+  border-radius: 6px;
+  background: #102d29d9;
+  color: #f0f2e9;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+.diorama:has(> .diorama-fallback) .diorama-pins { display: none; }
+.diorama-pins[aria-pressed="true"] { border-color: var(--diorama-hot); }
+.diorama-pins:focus-visible { outline: 2px solid var(--diorama-hot); outline-offset: 2px; }
+.diorama[data-labels="hidden"] .diorama-marker-position:not([data-hot]) .diorama-dot {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .diorama canvas {
@@ -186,7 +210,7 @@
   }
 
   .diorama-hover {
-    max-width: 105px;
-    font-size: 9px;
+    max-width: 140px;
+    font-size: 11px;
   }
 }

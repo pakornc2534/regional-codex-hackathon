@@ -23,6 +23,7 @@ export type SceneLabels = Partial<Record<SceneZone, { title: string; detail: str
 export type Position = [x: number, y: number, z: number]
 
 export interface ShopSceneProps {
+  shopName?: string
   variants: readonly SceneVariant[]
   selectedVariantId?: string
   onOpen: (zone: SceneZone, variantId?: string) => void
@@ -63,10 +64,10 @@ export function describeTarget(target: SceneTarget, labels?: SceneLabels) {
     const { sku, name, available } = target.variant
     return {
       title: sku,
-      detail: `${available === undefined ? name : `${name} · ขายได้ ${available} ชิ้น`}. ดูสต็อกและวางแผน`,
+      detail: available === undefined ? name : `${name} · ขายได้ ${available} ชิ้น`,
     }
   }
   const definition = zoneLabels[target.zone]
   const live = labels?.[target.zone]
-  return live ? { title: live.title, detail: `${live.detail}. ${definition.detail}` } : definition
+  return live ? { title: live.title, detail: live.detail } : definition
 }

@@ -27,7 +27,7 @@ try{
    if(['completed','failed'].includes(reply?.status))break
  }
  assert.equal(reply?.status,'completed',reply?.text);console.log('Hosted model:',reply.text)
- await page.getByText(reply.text,{exact:true}).waitFor({timeout:25000})
+ await page.waitForFunction(id=>Array.from(document.querySelectorAll('[data-message-id]')).some(el=>el.dataset.messageId===id && el.querySelector('.desk-answer')?.textContent.trim()),jobId,{timeout:25000})
  await mkdir('docs/screenshots',{recursive:true})
  await page.screenshot({path:'docs/screenshots/hosted-demo.png'})
  assert.deepEqual(errors,[])

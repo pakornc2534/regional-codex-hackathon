@@ -1,3 +1,4 @@
+import {bahtAmount} from '../../shared/baht.mjs'
 import {variantsOf,variantOf,dayMs,bangkokDate,roundMoney} from './simulator.mjs'
 import {aggregateOrders,historicalDemand,supplyFacts} from './shop-business.mjs'
 
@@ -243,8 +244,8 @@ export function growthPlan(world,input = {}) {
   const timeline = cashTimeline(inputs,{supported:supportablePlanUnits,netPayout,activeDays,delay:blockedDays,adSpend,debt})
   const lowestCash = timeline === null ? null : Math.min(inputs.cash,...timeline.map(row => row.low))
   const receivables = timeline === null ? null : roundMoney(timeline.filter(row => row.day >= inputDays).reduce((total,row) => total + row.sales,0))
-  if (lowestCash !== null && lowestCash < 0) warnings.push('เงินสดตามแผนไม่พอ ฿' + Math.abs(lowestCash).toLocaleString('th-TH'))
-  const primaryMessage = adTarget === null || adSpend <= 0 ? null : 'ถ้าขายเพิ่มจากปกติ ' + adRecoveryUnits + ' ชิ้นขึ้นไป รวมอย่างน้อย ' + adTarget + ' ชิ้น เงินที่เหลือหลังหักต้นทุนจะพอจ่ายค่าแอด ' + adSpend.toLocaleString('th-TH') + ' บาทแล้ว'
+  if (lowestCash !== null && lowestCash < 0) warnings.push('เงินสดตามแผนไม่พอ ฿' + bahtAmount(Math.abs(lowestCash)))
+  const primaryMessage = adTarget === null || adSpend <= 0 ? null : 'ถ้าขายเพิ่มจากปกติ ' + adRecoveryUnits + ' ชิ้นขึ้นไป รวมอย่างน้อย ' + adTarget + ' ชิ้น เงินที่เหลือหลังหักต้นทุนจะพอจ่ายค่าแอด ' + bahtAmount(adSpend) + ' บาทแล้ว'
   return {
     runId:world.runId,revision:world.revision,variantId:variant.id,mode,inputs,
     observedAt:world.clock,source:'simulated',baselineUnits,normalDemand,planDemand,rawBaselineDemand,rawPlanDemand,supportablePlanUnits,

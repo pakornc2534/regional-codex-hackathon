@@ -22,8 +22,14 @@ The fake inbox and carrier events do not validate any actual Shopee or email ser
 - A browser session on the publicly deployed Site submitted an owner question to the shared demo, received a genuine model response, and found it displayed in the chat. The response reported ฿221,056 across 600 paid orders for the seven-day period. No real store was involved.
 - The account-health report, sample news, simulated carrier and simulated email are fixtures. Live web-research quality depends on the connected account and its search service. The acceptance checks above did not validate live competitor coverage or any actual seller offer.
 
+The gallery redesign was also checked at 1440, 390 and 360 pixels. The product finder handled an empty search, switched the pedestal to SONIC, and restored ROBOT. On mobile the manager drawer opened from the bottom bar and closed with Escape.
+
+![Current dashboard](screenshots/overview-1440.png)
+
 ![Desktop shop](screenshots/shop-3d.png)
 
-![Hosted conversation](screenshots/hosted-demo.png)
+The following screenshot records the hosted assistant test before the interface redesign.
+
+![Hosted conversation during the earlier acceptance test](screenshots/hosted-demo.png)
 
 Additional checks: [domain scenarios](domain-verification.md). Run the destructive browser test only on a disposable local data directory using SHOP_UI_TEST_URL and scripts/check-ui.mjs. For the read-only layout test use TEST_ORIGIN and scripts/check-plan-layout.mjs.

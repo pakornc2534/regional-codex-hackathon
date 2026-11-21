@@ -15,6 +15,7 @@
     "relay": "node web-host/relay.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/noto-sans-thai": "^5.3.0",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "lucide-react": "^1.77.0",

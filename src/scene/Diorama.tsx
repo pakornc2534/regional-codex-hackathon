@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { ExtrudeGeometry, Shape } from 'three'
+import { useEffect, useMemo, type ReactNode } from 'react'
+import { CanvasTexture, CylinderGeometry, ExtrudeGeometry, LinearFilter, Shape, SRGBColorSpace } from 'three'
 import { Block, Collectible, Orb, Parcel, Ring, Round, materials } from './models'
 import { workflowPositions, type Position, type SceneTarget, type SceneVariant } from './scene-model'
 
@@ -21,6 +21,47 @@ const limestoneArch = new ExtrudeGeometry(archOutline(1.16, 1.50), {
   depth: .07, bevelEnabled: true, bevelSize: .025, bevelThickness: .023, bevelSegments: 1, curveSegments: 24,
 })
 
+// The ribs are one mesh. The brass cap and base catch the light as the camera turns.
+const flutedDrum = new CylinderGeometry(1, 1, 1, 128)
+const ribs = flutedDrum.getAttribute('position')
+for (let i = 0; i < ribs.count; i += 1) {
+  const x = ribs.getX(i), z = ribs.getZ(i)
+  const flute = .97 + .03 * Math.cos(32 * Math.atan2(z, x))
+  ribs.setXYZ(i, x * flute, ribs.getY(i), z * flute)
+}
+flutedDrum.computeVertexNormals()
+
+function ShopSign({ name }: { name: string }) {
+  const texture = useMemo(() => {
+    const panel = document.createElement('canvas')
+    panel.width = 640
+    panel.height = 120
+    const ctx = panel.getContext('2d')
+    if (!ctx) return null
+    ctx.fillStyle = '#143d37'
+    ctx.fillRect(0, 0, panel.width, panel.height)
+    ctx.strokeStyle = '#cbae70'
+    ctx.lineWidth = 3
+    ctx.strokeRect(7, 7, 626, 106)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = '600 76px Georgia, serif'
+    ctx.fillStyle = '#ffe7b0'
+    ctx.fillText(name, 320, 61, 590)
+    const result = new CanvasTexture(panel)
+    result.colorSpace = SRGBColorSpace
+    result.minFilter = LinearFilter
+    return result
+  }, [name])
+  useEffect(() => () => texture?.dispose(), [texture])
+  return (
+    <group position={[-1.03, 3.383, -4.08]}>
+      <Block size={[3.48, .72, .16]} material="brass" />
+      {texture && <mesh position={[0, 0, .093]}><planeGeometry args={[3.40, .635]} /><meshBasicMaterial map={texture} toneMapped={false} /></mesh>}
+    </group>
+  )
+}
+
 function Arch({ at, rotation = 0 }: { at: Position; rotation?: number }) {
   return (
     <group position={at} rotation={[0, rotation, 0]}>
@@ -28,7 +69,9 @@ function Arch({ at, rotation = 0 }: { at: Position; rotation?: number }) {
       <mesh position={[0, .015, .103]} geometry={brassArch} material={materials.brass} castShadow />
       <mesh position={[0, .021, .193]} geometry={archPanel} material={materials.warmGlass} receiveShadow />
       <Block at={[0, 1.51, .37]} size={[1.58, .032, .033]} material="warmWhite" cast={false} />
-      <Block at={[0, 2.044, .284]} size={[1.13, .014, .020]} material="gold" cast={false} />
+      {[-2, -1, 0, 1, 2].map(i => (
+        <Block key={i} at={[Math.sin(i * .37) * .56, 1.48 + Math.cos(i * .37) * .56, .284]} size={[.016, .69, .016]} rotation={[0, 0, -i * .37]} material="brass" cast={false} />
+      ))}
       <Block at={[0, .017, .330]} size={[2.17, .13, .35]} material="paleWood" />
     </group>
   )
@@ -46,10 +89,11 @@ function Column({ at, height = 3.32 }: { at: Position; height?: number }) {
   )
 }
 
-function Architecture() {
+function Architecture({ shopName }: { shopName?: string }) {
   return (
     <>
       <Block at={[0, -.63, .55]} size={[14.13, .25, 10.91]} material="foundation" />
+      <Block at={[0, -.752, .55]} size={[14.00, .035, 10.78]} material="brass" />
       <Block at={[0, -.42, .55]} size={[13.86, .20, 10.64]} material="edge" />
       <Block at={[0, -.22, .55]} size={[13.78, .25, 10.60]} material="stone" receive />
       <Block at={[3.93, -.071, .89]} size={[5.88, .152, 9.95]} material="clay" receive />
@@ -69,15 +113,22 @@ function Architecture() {
         <Block key={x} at={[x, .007, .87]} size={[.015, .010, 9.83]} material="shadeClay" cast={false} />
       ))}
 
+      <Block at={[-3.02, .0015, 5.35]} size={[6.72, .008, .038]} material="brass" cast={false} />
+      <Block at={[-6.35, .0015, 1.12]} size={[.038, .008, 8.49]} material="brass" cast={false} />
+      <Block at={[.315, .0015, 3.60]} size={[.038, .008, 3.55]} material="brass" cast={false} />
+
       <Block at={[0, 1.58, -4.45]} size={[13.66, 3.15, .43]} material="plaster" receive />
       <Block at={[-6.67, 1.56, -.65]} size={[.40, 3.10, 7.50]} material="plaster" receive />
-      <Block at={[0, 3.20, -4.44]} size={[13.9, .15, .63]} material="ivory" />
-      <Block at={[-6.68, 3.20, -.67]} size={[.61, .15, 7.67]} material="ivory" />
-      <Block at={[0, 3.343, -4.49]} size={[14.05, .159, .64]} material="stone" />
-      <Block at={[-6.75, 3.343, -.64]} size={[.64, .159, 7.69]} material="stone" />
+      <Block at={[0, 3.20, -4.44]} size={[13.9, .15, .63]} material="darkGreen" />
+      <Block at={[-6.68, 3.20, -.67]} size={[.61, .15, 7.67]} material="darkGreen" />
+      <Block at={[0, 3.343, -4.49]} size={[14.05, .159, .64]} material="darkGreen" />
+      <Block at={[-6.75, 3.343, -.64]} size={[.64, .159, 7.69]} material="darkGreen" />
       <Block at={[0, .13, -4.18]} size={[13.56, .22, .16]} material="wood" />
       <Block at={[-6.44, .13, -.65]} size={[.16, .22, 7.48]} material="wood" />
       <Block at={[.12, 2.96, -4.209]} size={[13.19, .035, .019]} material="brass" cast={false} />
+      {shopName && <ShopSign name={shopName} />}
+      <Block at={[0, 3.34, -4.16]} size={[13.94, .033, .025]} material="brass" />
+      <Block at={[-6.435, 3.34, -.65]} size={[.023, .033, 7.62]} material="brass" />
       {[-4.78, -2.28, .22, 2.72].map(x => <Arch key={x} at={[x, .35, -4.13]} />)}
       {[-5.99, -3.54, -1.04, 1.46, 3.96, 6.51].map(x => <Column key={x} at={[x, .01, -4.119]} />)}
 
@@ -93,18 +144,13 @@ function Architecture() {
 function DisplayCabinet({ children, at, angle = 0 }: { children: ReactNode; at: Position; angle?: number }) {
   return (
     <group position={at} rotation={[0, angle, 0]}>
-      <Block at={[0, .258, 0]} size={[1.88, .48, .61]} material="wood" cast />
-      <Block at={[0, .49, .027]} size={[1.99, .11, .71]} material="paleWood" receive />
-      <Block at={[0, .974, -.27]} size={[1.91, 1.12, .115]} material="archPanel" />
-      <Block at={[0, 1.105, 0]} size={[1.91, .061, .57]} material="paleWood" receive />
-      <Block at={[0, 1.811, .009]} size={[1.98, .115, .698]} material="paleWood" />
-      <Block at={[0, 1.719, .254]} size={[1.74, .030, .028]} material="warmWhite" cast={false} />
-      <Block at={[0, 1.045, .253]} size={[1.74, .027, .034]} material="warmWhite" cast={false} />
+      <Block at={[0, .258, 0]} size={[1.88, .48, .61]} material="darkGreen" cast />
+      <Block at={[0, .49, .027]} size={[1.99, .11, .71]} material="brass" receive />
+      <Block at={[-.49, .654, .02]} size={[.81, .23, .53]} material="wood" />
+      <Block at={[-.49, .781, .02]} size={[.84, .034, .55]} material="paleStone" />
       {[-1, 1].map(side => (
         <group key={side}>
-          <Block at={[side * .931, 1.145, .26]} size={[.092, 1.28, .077]} material="brass" />
-          <Block at={[side * .931, 1.13, -.24]} size={[.095, 1.22, .077]} material="wood" />
-          <Block at={[side * .45, .294, .317]} size={[.65, .21, .02]} material="paleWood" cast={false} />
+          <Block at={[side * .45, .294, .317]} size={[.65, .21, .02]} material="teal" cast={false} />
           <Block at={[side * .45, .299, .337]} size={[.14, .021, .02]} material="brass" cast={false} />
         </group>
       ))}
@@ -121,8 +167,9 @@ const cabinetPositions: { at: Position; angle?: number }[] = [
   { at: [2.72, 0, -3.945] },
   { at: [-6.10, 0, -2.78], angle: Math.PI / 2 },
   { at: [-6.10, 0, -.29], angle: Math.PI / 2 },
+  { at: [-6.10, 0, 2.19], angle: Math.PI / 2 },
 ]
-const cabinetSlots: Position[] = [[-.53, 1.15, .047], [.53, 1.15, .047], [-.53, .56, .047], [.53, .56, .047]]
+const cabinetSlots: Position[] = [[-.50, .805, .05], [.48, .555, .05]]
 
 function Monitor({ at, wide = false }: { at: Position; wide?: boolean }) {
   const width = wide ? 1.48 : .79
@@ -203,51 +250,49 @@ export interface LocationProps {
   shelf?: boolean
 }
 
-export function Diorama({ variants, selected, location: Location }: {
+export function Diorama({ variants, selected, shopName, location: Location }: {
+  shopName?: string
   variants: readonly SceneVariant[]
   selected?: SceneVariant
   location: (props: LocationProps) => ReactNode
 }) {
+  const shelfVariants = variants.slice(0, 13)
   return (
     <group dispose={null}>
-      <Architecture />
+      <Architecture shopName={shopName} />
       {cabinetPositions.map(({ at, angle }, cabinet) => (
         <DisplayCabinet key={cabinet} at={at} angle={angle}>
-          {variants.slice(cabinet * 2, cabinet * 2 + 2).map((variant, slot) => {
-            const shelfAt = cabinetSlots[slot + (cabinet % 2 ? 0 : 2)]
+          {shelfVariants.slice(cabinet * 2, cabinet * 2 + 2).map((variant, slot) => {
+            const shelfAt = cabinetSlots[slot]
             return (
               <group key={variant.id} position={shelfAt}>
                 <Location target={{ zone: 'product', variant }} at={[.21, .077, .285]} shelf mesh={
                   <>
                     <Round at={[0, .012, 0]} size={[.219, .031, .206]} material={selected?.id === variant.id ? 'gold' : 'brass'} />
-                    <Collectible sku={variant.sku} scale={.53} />
+                    <Collectible sku={variant.sku} scale={.87} />
                   </>
                 } />
               </group>
             )
           })}
-          {cabinet === 3 && variants[12] && (
-            <group position={[0, 1.15, .047]}>
-              <Location target={{ zone: 'product', variant: variants[12] }} at={[.24, .071, .26]} shelf mesh={
-                <><Round size={[.25, .05, .25]} material="brass" /><Collectible sku={variants[12].sku} scale={.64} /></>
-              } />
-            </group>
-          )}
         </DisplayCabinet>
       ))}
 
-      <group position={[-.27, .013, .37]}>
-        <Round at={[0, .033, 0]} size={[1.35, .062, .98]} material="shadeClay" receive />
-        <Round at={[0, .076, 0]} size={[1.24, .060, .90]} material="edge" receive />
-        <Round at={[0, .116, 0]} size={[1.11, .084, .82]} material="paleStone" receive />
-        <Round at={[0, .316, 0]} size={[.73, .35, .67]} material="darkGreen" />
-        <Round at={[0, .485, 0]} size={[.80, .057, .74]} material="brass" />
-        <Round at={[0, .525, 0]} size={[.72, .051, .68]} material="stone" receive />
-        <Ring at={[0, 1.04, -.26]} size={[.73, .73, .49]} material="gold" />
-        <Ring at={[0, 1.04, -.293]} size={[.78, .78, .49]} material="brass" />
+      <group position={[-.96, .013, 1.19]} rotation={[0, .19, 0]}>
+        <Round at={[0, .035, 0]} size={[1.66, .065, 1.30]} material="darkGreen" receive />
+        <Round at={[0, .086, 0]} size={[1.60, .044, 1.24]} material="brass" />
+        <Round at={[0, .142, 0]} size={[1.49, .085, 1.16]} material="paleStone" receive />
+        <mesh position={[0, .439, 0]} scale={[1.08, .51, .90]} geometry={flutedDrum} material={materials.teal} castShadow receiveShadow />
+        <Round at={[0, .213, 0]} size={[1.12, .049, .94]} material="brass" />
+        <Round at={[0, .704, 0]} size={[1.13, .074, .95]} material="brass" />
+        <Round at={[0, .757, 0]} size={[1.07, .043, .89]} material="paleStone" receive />
+        <Ring at={[0, 1.64, -.515]} size={[1.02, 1.02, .54]} material="gold" />
+        <Ring at={[0, 1.64, -.548]} size={[1.093, 1.093, .64]} material="brass" />
+        <Block at={[-.75, .871, -.52]} size={[.093, .34, .09]} material="brass" />
+        <Block at={[.75, .871, -.52]} size={[.093, .34, .09]} material="brass" />
         {selected && (
-          <Location target={{ zone: 'product', variant: selected }} at={[.01, .31, 1.08]} mesh={
-            <group position={[0, .56, .04]} rotation={[0, .26, 0]}><Collectible sku={selected.sku} scale={1.08} /></group>
+          <Location target={{ zone: 'product', variant: selected }} at={[.08, .37, 1.23]} mesh={
+            <group position={[0, .785, .04]} rotation={[0, .16, 0]}><Collectible sku={selected.sku} scale={1.68} /></group>
           } />
         )}
       </group>
@@ -322,6 +367,13 @@ export function Diorama({ variants, selected, location: Location }: {
         </group>
       } />
 
+      <group position={[-2.91, .012, 4.23]} rotation={[0, .10, 0]}>
+        <Block at={[0, .36, 0]} size={[1.91, .14, .54]} material="wood" />
+        {[-.66, 0, .66].map(x =>
+          <Block key={x} at={[x, .472, 0]} size={[.63, .12, .61]} material="teal" />
+        )}
+        {[-.73, .73].map(x => <Block key={x} at={[x, .161, 0]} size={[.075, .31, .41]} material="brass" />)}
+      </group>
       <Plant at={[-6.13, .004, 3.86]} scale={1.28} />
       <Plant at={[.46, .005, -2.89]} />
       <Plant at={[6.26, .005, -2.94]} />
