@@ -29,6 +29,9 @@
     "src",
     "tests",
     "vite.config.ts",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "browser",
+    "scripts",
+    "vitest.config.ts"
   ]
 }

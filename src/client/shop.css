@@ -1074,3 +1074,28 @@ td .row {
 .readback button {
   justify-self: start;
 }
+
+.shipping-label {
+  border: 1px dashed var(--ring);
+  border-radius: 8px;
+  padding: 18px;
+  overflow-wrap: anywhere;
+}
+.suggestion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  font-size: 12px;
+  justify-self: start;
+  padding: 3px 0;
+}
+
+.saved-plan {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+}

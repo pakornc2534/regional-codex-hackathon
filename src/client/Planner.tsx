@@ -14,7 +14,11 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Input } from "@/components/ui/input";
 import { money, type Zone } from "../shared/model";
-import type { PlanInputs, PlanResult } from "../shared/planner";
+import {
+  planSchema,
+  type PlanInputs,
+  type PlanResult,
+} from "../shared/planner";
 import { request, ui, useShop } from "./client";
 const fields: [keyof PlanInputs, string, number, number][] = [
   ["days", "ระยะเวลา (วัน)", 1, 1],
@@ -339,6 +343,41 @@ export function Planner() {
             </Button>
           </div>
         </div>
+      )}
+      {s.owner.plans.length > 0 && (
+        <details>
+          <summary>แผนโฆษณาที่บันทึกไว้ ({s.owner.plans.length})</summary>
+          {s.owner.plans
+            .slice()
+            .reverse()
+            .map((p) => (
+              <div key={p.id} className="saved-plan">
+                <span>
+                  {s.variants.find((v) => v.id === p.variantId)?.sku} ·{" "}
+                  {p.version === s.revision
+                    ? "ตรงกับข้อมูลปัจจุบัน"
+                    : "ข้อมูลร้านเปลี่ยนแล้ว"}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const parsed = planSchema.safeParse(p.inputs);
+                    if (parsed.success) {
+                      change({
+                        selected: p.variantId,
+                        drafts: { ...drafts, [p.variantId]: parsed.data },
+                        result: null,
+                      });
+                      setMore(true);
+                    }
+                  }}
+                >
+                  เปิดสมมติฐานเดิม
+                </Button>
+              </div>
+            ))}
+        </details>
       )}
     </div>
   );

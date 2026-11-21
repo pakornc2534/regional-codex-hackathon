@@ -62,6 +62,7 @@ export function readModel(
       chat: p.chat.slice(-65),
       plans: p.plans.slice(-10),
       rehearsals: p.rehearsals.slice(-10),
+      rehearsalProposals: p.rehearsalProposals.slice(-15),
     },
     score: score(s),
     ai,

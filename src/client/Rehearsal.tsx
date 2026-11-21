@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { FieldGroup, Field, FieldLabel } from "@/components/ui/field";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Input } from "@/components/ui/input";
 import { Play, Bookmark } from "lucide-react";
 import {
@@ -17,7 +20,20 @@ export function Rehearsal() {
     [res, setRes] = useState<RehearsalResult | null>(null),
     [opt, setOpt] = useState<RehearsalInput["option"]>(),
     [busy, setBusy] = useState(false);
+  const generation = useRef(0);
+  useEffect(
+    () => () => {
+      generation.current++;
+    },
+    [],
+  );
+  const invalidate = () => {
+    generation.current++;
+    setRes(null);
+    setBusy(false);
+  };
   async function run(option?: RehearsalInput["option"]) {
+    const ticket = ++generation.current;
     setBusy(true);
     try {
       const r = await request<RehearsalResult>("/api/sim/rehearsal", {
@@ -25,59 +41,67 @@ export function Rehearsal() {
         version: s.revision,
         inputs: { date, multiplier: mult, option },
       });
+      if (generation.current !== ticket) return;
       setRes(r);
       setOpt(option);
     } catch (e) {
       report(e);
     } finally {
-      setBusy(false);
+      if (generation.current === ticket) setBusy(false);
     }
   }
   const stale = res && (res.version !== s.revision || res.runId !== s.runId);
   return (
     <section className="panel">
       <h2>ซ้อมวันแคมเปญบนสำเนาร้าน</h2>
-      <div className="chips">
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        value={date}
+        aria-label="เลือกวันแคมเปญ"
+        onValueChange={(d) => {
+          if (d) {
+            setDate(d);
+            invalidate();
+          }
+        }}
+      >
         {dates.map((d) => (
-          <Button
-            key={d}
-            variant={d === date ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setDate(d);
-              setRes(null);
-            }}
-          >
+          <ToggleGroupItem key={d} value={d}>
             {d.slice(5).replace("-", ".")}
-          </Button>
+          </ToggleGroupItem>
         ))}
-      </div>
-      <div className="fields">
-        <label>
-          วันแคมเปญ
+      </ToggleGroup>
+      <FieldGroup className="fields">
+        <Field>
+          <FieldLabel htmlFor="rehearsal-date">วันแคมเปญ</FieldLabel>
           <Input
+            id="rehearsal-date"
             type="date"
             value={date}
             onChange={(e) => {
               setDate(e.target.value);
-              setRes(null);
+              invalidate();
             }}
           />
-        </label>
-        <label>
-          ตัวคูณยอดขาย · สมมติฐาน
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="rehearsal-multiplier">
+            ตัวคูณยอดขาย · สมมติฐาน
+          </FieldLabel>
           <Input
+            id="rehearsal-multiplier"
             type="number"
             min="0"
             max="30"
             value={mult}
             onChange={(e) => {
               setMult(Number(e.target.value));
-              setRes(null);
+              invalidate();
             }}
           />
-        </label>
-      </div>
+        </Field>
+      </FieldGroup>
       <Button disabled={busy} onClick={() => run()}>
         <Play />
         ซ้อมแคมเปญ
@@ -109,6 +133,35 @@ export function Rehearsal() {
                         </p>
                       ))}
                     <details>
+                      <summary>ผลกระทบในวันแคมเปญ</summary>
+                      <dl className="facts">
+                        <div>
+                          <dt>งบแอดสมมติที่ยังเปิดต่อวัน</dt>
+                          <dd>฿{money(r.impact.dailyAds)}</dd>
+                        </div>
+                        <div>
+                          <dt>ต้องการซื้อ / มีให้ขาย</dt>
+                          <dd>
+                            {r.impact.requested} / {r.impact.accepted} ชิ้น
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>วัสดุที่ขาดระหว่างซ้อม</dt>
+                          <dd>{r.impact.materialsShort} รายการ</dd>
+                        </div>
+                        <div>
+                          <dt>งานแพ็ก / กำลังแพ็ก</dt>
+                          <dd>
+                            {r.impact.work} / {r.impact.capacity} ชิ้น
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>เงินสดปิดวัน</dt>
+                          <dd>฿{money(r.impact.closingCash)}</dd>
+                        </div>
+                      </dl>
+                    </details>
+                    <details>
                       <summary>ความต้องการที่พลาดรายสินค้า</summary>
                       {r.unmet.map((v) => (
                         <p key={v.sku}>
@@ -128,6 +181,13 @@ export function Rehearsal() {
               disabled={busy || !!stale}
               onClick={() => run(o.id)}
             >
+              {s.owner.rehearsalProposals.some(
+                (p) =>
+                  p.version === res.version &&
+                  p.date === res.date &&
+                  p.multiplier === res.multiplier &&
+                  p.optionIds.includes(o.id),
+              ) && <Badge variant="secondary">ผู้จัดการแนะนำ</Badge>}
               {o.text}
               {o.extra ? " +" + o.extra + " ชิ้น/วัน" : ""}
             </Button>

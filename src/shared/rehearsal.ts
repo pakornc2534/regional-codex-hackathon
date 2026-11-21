@@ -30,13 +30,12 @@ export function rehearse(s: Shop, input: RehearsalInput) {
       firstShort: (string | null)[] = onHand.map(() => null),
       shorts = onHand.map(() => 0),
       unmet = available.map(() => 0);
-    const queue = s.orders
-      .filter(unpacked)
-      .map((o) => ({
-        v: s.variants.findIndex((v) => v.id === o.variantId),
-        q: o.qty,
-        due: o.prepareBy!.slice(0, 10),
-      }));
+    const queue = s.orders.filter(unpacked).map((o) => ({
+      v: s.variants.findIndex((v) => v.id === o.variantId),
+      q: o.qty,
+      due: dayKey(o.prepareBy ?? s.clock),
+      singleParcel: true,
+    }));
     const receipts = new Map<string, number>();
     for (const o of s.orders) {
       if (
@@ -66,13 +65,21 @@ export function rehearse(s: Shop, input: RehearsalInput) {
       late: number;
       cash: number | null;
     }[] = [];
+    const dailyAds = s.campaigns.reduce(
+      (total, ad) => total + (ad.status === "active" ? ad.budget : 0),
+      0,
+    );
     for (const [d, date] of days.entries()) {
       const campaign = date === i.date,
         cap = s.defaults.capacity + (campaign ? extra : 0);
       let requested = 0,
         accepted = 0,
         packed = 0;
-      if (balance !== null) balance += receipts.get(date) ?? 0;
+      if (balance !== null) {
+        balance -= dailyAds;
+        lowest = Math.min(lowest!, balance);
+        balance += receipts.get(date) ?? 0;
+      }
       if (campaign) {
         onHand.forEach((_, j) => {
           onHand[j] += deliveries[j] ?? 0;
@@ -120,7 +127,7 @@ export function rehearse(s: Shop, input: RehearsalInput) {
         accepted += sold;
         unmet[k] += pos - posSold + q - sold;
         if (sold) {
-          queue.push({ v: k, q: sold, due: date });
+          queue.push({ v: k, q: sold, due: date, singleParcel: false });
           const payday = dayKey(
             plus(new Date(date + "T06:00:00+07:00").toISOString(), 7 * dayMs),
           );
@@ -160,7 +167,7 @@ export function rehearse(s: Shop, input: RehearsalInput) {
               use ? [Math.floor(onHand[j] / use + 1e-8)] : [],
             ),
           );
-        if (can <= 0) continue;
+        if (can <= 0 || (row.singleParcel && can < row.q)) continue;
         row.q -= can;
         packed += can;
         r.forEach((use, j) => (onHand[j] = roundQty(onHand[j] - can * use)));
@@ -168,7 +175,7 @@ export function rehearse(s: Shop, input: RehearsalInput) {
       const backlog = queue.reduce((a, row) => a + row.q, 0),
         overdue = queue
           .filter((row) => row.q && row.due === date)
-          .reduce((a, row) => a + row.q, 0);
+          .reduce((a, row) => a + (row.singleParcel ? 1 : row.q), 0);
       late += overdue;
       if (balance !== null) lowest = Math.min(lowest!, balance);
       daily.push({
@@ -182,6 +189,15 @@ export function rehearse(s: Shop, input: RehearsalInput) {
       });
     }
     return {
+      impact: {
+        requested: daily.at(-1)!.requested,
+        accepted: daily.at(-1)!.accepted,
+        materialsShort: shorts.filter((q) => q > 0).length,
+        work: peak,
+        capacity: s.defaults.capacity + extra,
+        dailyAds,
+        closingCash: daily.at(-1)!.cash,
+      },
       first,
       peak,
       late,

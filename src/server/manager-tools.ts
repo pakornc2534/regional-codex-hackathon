@@ -4,6 +4,7 @@ import { calculatePlan, planSchema } from "../shared/planner";
 import { rehearse, rehearsalSchema, presets } from "../shared/rehearsal";
 import {
   actions,
+  money,
   type Action,
   type Shop,
   type PrivateStore,
@@ -107,6 +108,14 @@ export function scopeContext(s: Shop, p: PrivateStore, r: Room) {
       )
     : sorted.slice(0, 50);
   const selected = c?.variantId ?? r.variantId ?? s.variants[0].id;
+  const v = findItem(f.variants, selected);
+  const customerFacts = {
+    id: v.id,
+    sku: v.sku,
+    name: v.name,
+    price: v.price,
+    available: v.available,
+  };
   return {
     mode: s.mode,
     runId: s.runId,
@@ -115,7 +124,16 @@ export function scopeContext(s: Shop, p: PrivateStore, r: Room) {
     source: "simulated",
     currency: "satang",
     shop: s.name,
-    selectedVariant: findItem(f.variants, selected),
+    selectedVariant: thread ? customerFacts : v,
+    displayBaht: thread
+      ? { price: money(v.price) }
+      : {
+          price: money(v.price),
+          productCost: money(v.cost),
+          sales: money(f.sales),
+          sevenDaySales: money(f.weekSales),
+          planningCash: money(s.defaults.cash),
+        },
     case: c
       ? {
           ...c,
@@ -133,15 +151,17 @@ export function scopeContext(s: Shop, p: PrivateStore, r: Room) {
               variantStocks: a.variantIds.map((id) => findItem(f.variants, id)),
             }))
         : null,
-    aggregates: {
-      orders: f.total,
-      paid: f.paid,
-      sales: f.sales,
-      weekCount: f.weekCount,
-      weekSales: f.weekSales,
-      queue: f.queue,
-      capacity: s.defaults.capacity,
-    },
+    aggregates: thread
+      ? { orders: scope.length, paid: scope.filter((o) => o.paid).length }
+      : {
+          orders: f.total,
+          paid: f.paid,
+          sales: f.sales,
+          weekCount: f.weekCount,
+          weekSales: f.weekSales,
+          queue: f.queue,
+          capacity: s.defaults.capacity,
+        },
     orders: chosen.map(({ id, qty, variantId, stage, paidAmount }) => ({
       id,
       qty,
@@ -160,6 +180,7 @@ export function scopeContext(s: Shop, p: PrivateStore, r: Room) {
     ownerMemory: c?.type === "reply" ? [] : p.memories.slice(-12),
     savedPlans: r.room === "planning" ? p.plans.slice(-2) : [],
     campaignDates: presets(s),
+    rehearsal: r.room === "rehearsal" ? r.rehearsal : undefined,
     proposals: s.proposals.filter((pr) => pr.caseId === r.room).slice(-2),
   };
 }
@@ -214,9 +235,28 @@ export async function useTool(
     if (name === "sim_calculate_plan" || name === "sim_calculate_rehearsal") {
       if (c) throw Error("เปิดเครื่องคำนวณในห้องวางแผน");
       event();
-      return name === "sim_calculate_plan"
-        ? calculatePlan(s, planSchema.parse(args))
-        : rehearse(s, rehearsalSchema.parse(args));
+      if (name === "sim_calculate_plan") {
+        const plan = calculatePlan(s, planSchema.parse(args));
+        return {
+          ...plan,
+          displayBaht: {
+            budget: money(plan.spend),
+            perUnit: money(plan.m),
+            baseline: money(plan.baseline),
+            afterCosts: money(plan.contribution),
+            gain: money(plan.gain),
+            lowestCash: money(plan.lowestCash),
+          },
+        };
+      }
+      const forecast = rehearse(s, rehearsalSchema.parse(args));
+      return {
+        ...forecast,
+        displayBaht: {
+          lowest: money(forecast.before.lowest),
+          after: money(forecast.after?.lowest),
+        },
+      };
     }
     if (name === "sim_propose_options") {
       const a = definitions.sim_propose_options.schema.parse(args);
@@ -228,7 +268,30 @@ export async function useTool(
         if (options.length !== new Set(a.preparationIds).size)
           throw Error("ไม่พบทางเลือกของการซ้อมรอบนี้");
         event("proposed");
-        return { options, sourceVersion: s.revision, ownerMustSave: true };
+        const caseId = [
+          "sim-rehearsal",
+          s.runId,
+          s.revision,
+          calc.date,
+          calc.multiplier,
+        ].join("/");
+        const entry = {
+          caseId,
+          date: calc.date,
+          multiplier: calc.multiplier,
+          version: s.revision,
+          optionIds: options.map((o) => o.id),
+          at: s.clock,
+        };
+        p.rehearsalProposals = p.rehearsalProposals
+          .filter((old) => old.caseId !== caseId)
+          .concat(entry);
+        return {
+          caseId,
+          options,
+          sourceVersion: s.revision,
+          ownerMustSave: true,
+        };
       }
       if (
         !c ||

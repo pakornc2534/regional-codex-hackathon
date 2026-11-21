@@ -147,3 +147,94 @@ for (const width of [1440, 390, 360])
       ).toBe(true);
     },
   );
+
+test("human packing docs, scoped inbox and readback after a lost command response", async ({
+  page,
+  request,
+}) => {
+  await reset(page);
+  await nav(page, "ส่งของ");
+  const order = page
+    .getByRole("row")
+    .filter({
+      has: page.getByRole("button", { name: "เตรียมใบปะหน้า", exact: true }),
+    })
+    .first();
+  await order
+    .getByRole("button", { name: "เตรียมใบปะหน้า", exact: true })
+    .click();
+  await page.getByRole("button", { name: "ดูใบหยิบและใบปะหน้า" }).first().click();
+  await expect(page.getByRole("dialog")).toContainText("เลขพัสดุอ้างอิง");
+  await page.keyboard.press("Escape");
+  await nav(page, "แชทลูกค้า");
+  await page
+    .getByRole("button", { name: "เปิดข้อความรับเรื่อง", exact: true })
+    .click();
+  await page
+    .getByRole("textbox", { name: "ข้อความสำหรับแชทจำลอง" })
+    .fill("ยังเหลือไหมคะ");
+  await page.getByRole("button", { name: "จำลองลูกค้าส่งข้อความ" }).click();
+  await expect(page.locator("main [data-slot=bubble-content]")).toHaveCount(3);
+  await nav(page, "สต็อกกลาง");
+  await page.getByRole("textbox", { name: "ค้นหาสต็อก" }).fill("sonic");
+  await page.getByRole("button", { name: /SONIC.*พวงกุญแจ/ }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByText("จำลองการขายหน้าร้านหรือรับออเดอร์ออนไลน์", { exact: true })
+    .click();
+  await page.route("**/api/sim/command", async (route) => {
+    if (route.request().postDataJSON().type === "pos") {
+      await route.fetch();
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await dialog.getByRole("button", { name: "ขายหน้าร้าน", exact: true }).click();
+  await expect
+    .poll(
+      async () =>
+        (await (await request.get("/api/state")).json()).variants.find(
+          (v: { sku: string }) => v.sku === "SONIC",
+        ).available,
+    )
+    .toBe(0);
+  await expect(page.locator(".command-error")).toHaveCount(0);
+  expect(
+    (await (await request.get("/api/state")).json()).receipts.filter(
+      (r: { type: string }) => r.type === "pos",
+    ),
+  ).toHaveLength(1);
+});
+
+test("S18 every gallery workstation opens its matching dialog and closes with Escape", async ({
+  page,
+}) => {
+  await reset(page);
+  await nav(page, "ร้าน 3D");
+  await page
+    .locator(".gallery-tools summary, .store-gallery summary")
+    .first()
+    .click();
+  const controls = page.getByRole("navigation", { name: "จุดทำงานในร้าน" });
+  for (const label of [
+    "ชั้นสินค้า",
+    "คิวหยิบสินค้า",
+    "โต๊ะแพ็ก",
+    "จุดรอขนส่ง",
+    "รถขนส่ง",
+    "พื้นที่รับคืน",
+    "เคาน์เตอร์เงิน",
+    "กระดานร้าน",
+    "โต๊ะผู้จัดการ",
+  ]) {
+    const b = controls.getByRole("button", { name: label, exact: true });
+    await b.focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      page
+        .getByRole("dialog")
+        .getByRole("heading", { name: label, exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
+});

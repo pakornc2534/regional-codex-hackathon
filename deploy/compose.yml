@@ -1,9 +1,9 @@
 services:
   shop:
-    build: .
+    build: ..
     image: ranrao-shop:local
     restart: unless-stopped
-    env_file: .env
+    env_file: ../.env
     ports:
       - "${SHOP_BIND_ADDRESS:?Set the private application address}:4310:4310"
     volumes:

@@ -9,6 +9,13 @@ import {
   Search,
   ShoppingBag,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogHeader,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +36,7 @@ import {
   statuses,
   actions,
   thTime,
+  acknowledgements,
   type Stage,
   type Zone,
   type Action,
@@ -344,7 +352,7 @@ export function Cases() {
   );
 }
 export function Inbox() {
-  const { s, cmd } = useShop(),
+  const { s, cmd, busy } = useShop(),
     { inbox, change } = ui(),
     [value, setValue] = useState(""),
     t = s.conversations.find((x) => x.id === inbox) ?? s.conversations[0];
@@ -366,6 +374,7 @@ export function Inbox() {
       <ConversationLog messages={t.messages} />
       <div className="row">
         <Button
+          disabled={busy}
           variant="outline"
           onClick={() =>
             cmd({
@@ -377,12 +386,28 @@ export function Inbox() {
           {t.owner === "agent" ? "รับช่วงแชทนี้" : "คืนแชทให้ผู้จัดการ"}
         </Button>
         <Button
+          disabled={busy}
           variant="outline"
           onClick={() => cmd({ type: "ack", enabled: !s.ack.enabled })}
         >
           {s.ack.enabled ? "ปิด" : "เปิด"}ข้อความรับเรื่อง
         </Button>
       </div>
+      <label>
+        ข้อความรับเรื่อง
+        <select
+          disabled={busy}
+          value={s.ack.text}
+          onChange={(e) => {
+            const text = acknowledgements.find((t) => t === e.target.value);
+            if (text) void cmd({ type: "ack", enabled: s.ack.enabled, text });
+          }}
+        >
+          {acknowledgements.map((t) => (
+            <option key={t}>{t}</option>
+          ))}
+        </select>
+      </label>
       <label>
         ข้อความสำหรับแชทจำลอง
         <Textarea
@@ -393,7 +418,7 @@ export function Inbox() {
       </label>
       <div className="row">
         <Button
-          disabled={!value.trim()}
+          disabled={busy || !value.trim()}
           onClick={async () => {
             if (await cmd({ type: "message", target: t.id, text: value }))
               setValue("");
@@ -404,7 +429,7 @@ export function Inbox() {
         {t.owner === "human" && (
           <Button
             variant="outline"
-            disabled={!value.trim()}
+            disabled={busy || !value.trim()}
             onClick={async () => {
               if (await cmd({ type: "humanReply", target: t.id, text: value }))
                 setValue("");
@@ -601,7 +626,10 @@ export function Shipping({ initial = "waiting" }: { initial?: Stage }) {
     [stage, set] = useState<Stage>(initial),
     [page, pager] = useState(1),
     [rows, setRows] = useState<ReturnType<typeof orderView>[]>([]),
-    [total, setTotal] = useState(0);
+    [total, setTotal] = useState(0),
+    [documentOrder, showDocument] = useState<ReturnType<
+      typeof orderView
+    > | null>(null);
   useEffect(() => {
     let active = true;
     request<{ orders: typeof rows; total: number }>(
@@ -660,6 +688,22 @@ export function Shipping({ initial = "waiting" }: { initial?: Stage }) {
           </>,
           o.prepareBy ? thTime(o.prepareBy) : "—",
           <div className="row">
+            {o.documents ? (
+              <Button size="sm" variant="ghost" onClick={() => showDocument(o)}>
+                ดูใบหยิบและใบปะหน้า
+              </Button>
+            ) : (
+              ["waiting", "packing"].includes(stage) && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => cmd({ type: "printDocs", target: o.id })}
+                >
+                  เตรียมใบปะหน้า
+                </Button>
+              )
+            )}
+
             {stage === "waiting" && (
               <Button
                 size="sm"
@@ -701,6 +745,37 @@ export function Shipping({ initial = "waiting" }: { initial?: Stage }) {
           </div>,
         ])}
       />
+      <Dialog
+        open={!!documentOrder}
+        onOpenChange={(open) => {
+          if (!open) showDocument(null);
+        }}
+      >
+        <DialogContent className="shop-dialog">
+          <DialogHeader>
+            <DialogTitle>ใบหยิบสินค้าและใบปะหน้า</DialogTitle>
+            <DialogDescription>เอกสารพัสดุจำลองจากคำสั่งซื้อที่เลือก</DialogDescription>
+          </DialogHeader>
+          {documentOrder && (
+            <div className="shipping-label">
+              <Badge variant="outline">พัสดุจำลอง</Badge>
+              <h3>ร้าน {s.name}</h3>
+              <b>
+                {s.variants.find((v) => v.id === documentOrder.variantId)?.name}{" "}
+                × {documentOrder.qty} ชิ้น
+              </b>
+              <p>เลขพัสดุอ้างอิง {documentOrder.id}</p>
+              <p>
+                กำหนดเตรียม{" "}
+                {documentOrder.prepareBy
+                  ? thTime(documentOrder.prepareBy)
+                  : "ยังไม่ทราบ"}
+              </p>
+              <p>สถานะ {stages[documentOrder.stage]}</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
       {!rows.length && <Hint>ไม่มีพัสดุในขั้นตอนนี้</Hint>}
       <div className="row">
         <Button

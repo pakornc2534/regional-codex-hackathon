@@ -63,6 +63,14 @@ export type Payload = Command extends infer T
     ? Omit<T, "runId" | "version" | "key">
     : never
   : never;
+export class HttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
 export async function request<T>(url: string, body?: unknown): Promise<T> {
   const res = await fetch(
     url,
@@ -75,7 +83,7 @@ export async function request<T>(url: string, body?: unknown): Promise<T> {
         },
   );
   const data = await res.json();
-  if (!res.ok) throw Error(data.error ?? "ติดต่อร้านไม่ได้");
+  if (!res.ok) throw new HttpError(res.status, data.error ?? "ติดต่อร้านไม่ได้");
   return data;
 }
 export const StoreContext = createContext<{

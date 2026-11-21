@@ -231,6 +231,14 @@ export interface PrivateStore {
     results: unknown;
     at: string;
   }[];
+  rehearsalProposals: {
+    caseId: string;
+    date: string;
+    multiplier: number;
+    version: number;
+    optionIds: string[];
+    at: string;
+  }[];
   rehearsals: {
     id: string;
     date: string;
@@ -310,3 +318,9 @@ export const thTime = (time: string) =>
     hour: "2-digit",
     minute: "2-digit",
   });
+
+export const acknowledgements = [
+  "ได้รับข้อความแล้วค่ะ ผู้จัดการร้านจะตรวจสอบให้สักครู่นะคะ",
+  "ขอบคุณที่ทักมาค่ะ ขอเวลาร้านตรวจข้อมูลสักครู่นะคะ",
+  "ร้านรับเรื่องแล้วค่ะ เดี๋ยวเราตรวจสอบให้ค่ะ",
+] as const;

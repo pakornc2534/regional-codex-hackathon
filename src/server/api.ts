@@ -95,6 +95,12 @@ export function api(store: Store) {
   app.get("/api/state", (c) =>
     c.json(readModel(store.shop, store.owner, ai.status, shared)),
   );
+  app.get("/api/receipts/:key", (c) => {
+    const receipt = store.shop.receipts.find(
+      (r) => r.id === c.req.param("key") && r.runId === c.req.query("runId"),
+    );
+    return c.json({ receipt: receipt ?? null });
+  });
   app.get("/api/orders", (c) => {
     const q = z
         .object({

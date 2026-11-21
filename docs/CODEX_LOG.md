@@ -13,3 +13,7 @@ Built the Hono API, atomic persistence, scoped function calls, retail workflows,
 ## M2 — owner authority and gallery
 
 Separated customer messages from owner conversations. The UI links a verified action to the actual delivered message, records policy changes and exposes the common three-hour risk estimate. Case fixtures verified first approval, three consecutive approvals, level-2 scope limits, takeover, demotion after uncertain readback and partial KISS stockouts. The gallery uses local geometry and a matching Canvas 2D path. Chromium exercised nested dialogs, keyboard selection, SSE reset and all three viewport sizes. Five browser checks passed.
+
+## M3 — campaign rehearsal
+
+Built day-by-day fractional baseline allocation, stock and material reservation, competing packing work, delayed settlements, cash expenses and preparation lead times. On the default October fork SONIC stock first limited sales on 8 October. The 10 October packing load reached 395 units against capacity of 120. Added controls for comparing both runs and attaching only calculated preparation IDs to a scoped manager recommendation. The selected combined option reduced simulated deadline misses from 275 to zero. Saving preserved the operational revision.

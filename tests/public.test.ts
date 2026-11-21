@@ -128,5 +128,19 @@ it("S13 and S22 enforce shared-demo host/origin, body limit, rate limits and key
   let last = 0;
   for (let n = 0; n < 50; n++) last = (await send("/api/ai/retry", {})).status;
   expect(last).toBe(429);
+  vi.stubEnv("TRUSTED_PROXY_IP", "127.0.0.1");
+  let globalLimited = false;
+  for (let n = 0; n < 245; n++) {
+    const response = await send(
+      "/api/ai/retry",
+      {},
+      { "x-real-ip": "192.0.2." + Math.floor(n / 22) },
+    );
+    if (response.status === 429) {
+      globalLimited = true;
+      break;
+    }
+  }
+  expect(globalLimited).toBe(true);
   expect((await fetch(url + "/api/state")).status).toBe(200);
 });

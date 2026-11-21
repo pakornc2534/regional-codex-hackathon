@@ -1,4 +1,5 @@
 import {
+  MessageScrollerProvider,
   MessageScroller,
   MessageScrollerViewport,
   MessageScrollerContent,
@@ -22,30 +23,32 @@ export function ConversationLog({
 }) {
   if (!messages.length) return null;
   return (
-    <MessageScroller className="conversation-log" aria-label="ประวัติข้อความ">
-      <MessageScrollerViewport>
-        <MessageScrollerContent>
-          {messages.map((m, i) => (
-            <MessageScrollerItem key={i}>
-              <Message align={m.role === "owner" ? "end" : "start"}>
-                <MessageContent>
-                  <MessageHeader>
-                    {m.role === "owner"
-                      ? "เจ้าของร้าน"
-                      : m.role === "customer"
-                        ? "ลูกค้า"
-                        : "ผู้จัดการ AI"}{" "}
-                    · {thTime(m.at)}
-                  </MessageHeader>
-                  <Bubble>
-                    <BubbleContent>{m.text}</BubbleContent>
-                  </Bubble>
-                </MessageContent>
-              </Message>
-            </MessageScrollerItem>
-          ))}
-        </MessageScrollerContent>
-      </MessageScrollerViewport>
-    </MessageScroller>
+    <MessageScrollerProvider>
+      <MessageScroller className="conversation-log" aria-label="ประวัติข้อความ">
+        <MessageScrollerViewport>
+          <MessageScrollerContent>
+            {messages.map((m, i) => (
+              <MessageScrollerItem key={i}>
+                <Message align={m.role === "owner" ? "end" : "start"}>
+                  <MessageContent>
+                    <MessageHeader>
+                      {m.role === "owner"
+                        ? "เจ้าของร้าน"
+                        : m.role === "customer"
+                          ? "ลูกค้า"
+                          : "ผู้จัดการ AI"}{" "}
+                      · {thTime(m.at)}
+                    </MessageHeader>
+                    <Bubble>
+                      <BubbleContent>{m.text}</BubbleContent>
+                    </Bubble>
+                  </MessageContent>
+                </Message>
+              </MessageScrollerItem>
+            ))}
+          </MessageScrollerContent>
+        </MessageScrollerViewport>
+      </MessageScroller>
+    </MessageScrollerProvider>
   );
 }

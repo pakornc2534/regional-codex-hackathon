@@ -1,8 +1,14 @@
 import { z } from "zod";
 import { calculatePlan, planSchema } from "../shared/planner";
 import { rehearse, rehearsalSchema } from "../shared/rehearsal";
-import { roundQty, actions, type Action, type Receipt } from "../shared/model";
-import { findItem, changeStage, sale, uid } from "./fulfillment";
+import {
+  acknowledgements,
+  roundQty,
+  actions,
+  type Action,
+  type Receipt,
+} from "../shared/model";
+import { documents, findItem, changeStage, sale, uid } from "./fulfillment";
 import {
   advance,
   allowed,
@@ -28,6 +34,7 @@ const bodies = z.discriminatedUnion("type", [
   z.object({ type: z.enum(["pos", "online", "receive"]), target: id, qty }),
   z.object({
     type: z.enum([
+      "printDocs",
       "startPacking",
       "pack",
       "pickup",
@@ -43,7 +50,11 @@ const bodies = z.discriminatedUnion("type", [
   z.object({ type: z.literal("message"), target: id, text: msg }),
   z.object({ type: z.literal("humanReply"), target: id, text: msg }),
   z.object({ type: z.literal("control"), paused: z.boolean() }),
-  z.object({ type: z.literal("ack"), enabled: z.boolean() }),
+  z.object({
+    type: z.literal("ack"),
+    enabled: z.boolean(),
+    text: z.enum(acknowledgements).optional(),
+  }),
   z.object({ type: z.literal("advance"), minutes: qty.max(10080) }),
   z.object({ type: z.literal("choose"), target: id, option: id }),
   z.object({
@@ -110,6 +121,14 @@ export async function command(store: Store, raw: unknown) {
         receipt.after = m.quantity;
         break;
       }
+      case "printDocs": {
+        receipt.before = findItem(s.orders, c.target).documents;
+        receipt.after = documents(s, [c.target]);
+        receipt.verification = findItem(s.orders, c.target).documents
+          ? c.target
+          : null;
+        break;
+      }
       case "startPacking":
       case "pack":
       case "pickup":
@@ -138,6 +157,7 @@ export async function command(store: Store, raw: unknown) {
       }
       case "ack":
         s.ack.enabled = c.enabled;
+        if (c.text) s.ack.text = c.text;
         receipt.after = s.ack.enabled;
         break;
       case "control":

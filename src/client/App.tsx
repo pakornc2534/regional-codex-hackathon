@@ -80,6 +80,7 @@ import {
   Supplies,
   ZoneBody,
 } from "./Workspaces";
+import { sendCommand } from "./commands";
 import { ConversationLog } from "./ConversationLog";
 import { Planner } from "./Planner";
 import { Rehearsal } from "./Rehearsal";
@@ -302,6 +303,26 @@ function ManagerDesk() {
         {c && <Options caseId={c.id} />}
       </div>
       <div className="composer">
+        <button
+          type="button"
+          className="suggestion"
+          onClick={() =>
+            setDraft(
+              c
+                ? "เคสนี้ควรทำอะไรก่อน เพราะอะไร?"
+                : page === "planning"
+                  ? "ถ้าเพิ่มงบแอด ต้องเตรียมสต็อกและกล่องเพิ่มเท่าไร?"
+                  : "วันนี้มีงานไหนที่ควรจัดการก่อน?",
+            )
+          }
+        >
+          <MessageSquare size={13} />
+          {c
+            ? "ถามเรื่องเคสนี้"
+            : page === "planning"
+              ? "ถามผลกระทบของแผน"
+              : "ถามว่างานไหนเร่งด่วน"}
+        </button>
         <label htmlFor="manager-message">ข้อความถึงผู้จัดการ</label>
         <Textarea
           id="manager-message"
@@ -825,22 +846,25 @@ export default function App() {
     body: Payload,
     scope?: { runId: string; version: number },
   ) {
-    if (!s || active.current) return false;
+    if (!s) return false;
+    if (active.current) {
+      toast.info("กำลังตรวจผลคำสั่งก่อนหน้า");
+      return false;
+    }
     active.current = true;
     setBusy(true);
     setError("");
     try {
-      const r = await request<{ status: string }>(
-        body.type === "memory" ? "/api/memories" : "/api/sim/command",
-        {
-          ...body,
-          runId: scope?.runId ?? s.runId,
-          version: scope?.version ?? s.revision,
-          key: crypto.randomUUID(),
-        },
-      );
+      const r = await sendCommand(body, {
+        runId: scope?.runId ?? s.runId,
+        version: scope?.version ?? s.revision,
+      });
       await refresh();
-      toast.success(statuses[r.status] ?? "บันทึกแล้ว");
+      if (r.status !== "verified") {
+        report(statuses[r.status] ?? "ยังไม่แน่ใจผล");
+        return false;
+      }
+      toast.success(statuses[r.status]);
       return true;
     } catch (e) {
       report(e);

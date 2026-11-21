@@ -16,6 +16,7 @@ export const emptyPrivate = (runId: string): PrivateStore => ({
   memories: [],
   chat: [],
   plans: [],
+  rehearsalProposals: [],
   rehearsals: [],
 });
 async function optional<T>(name: string): Promise<T | undefined> {
@@ -44,6 +45,7 @@ export function hash(payload: unknown) {
 export class Conflict extends Error {}
 export class Store {
   readonly events = new EventEmitter();
+  private needsRecovery = false;
   private readonly queue = new PQueue({ concurrency: 1 });
   private constructor(
     readonly dir: string,
@@ -72,6 +74,7 @@ export class Store {
       p = await optional<PrivateStore>(path.join(dir, "store.json"));
     if (!!s !== !!p || (s && p && (s.schema !== 1 || s.runId !== p.runId)))
       throw Error("ข้อมูลที่เก็บไว้ต้องได้รับการตรวจสอบ");
+    if (p) p.rehearsalProposals ??= [];
     const shop = s ?? seed(uid()),
       store = new Store(dir, shop, p ?? emptyPrivate(shop.runId));
     if (!s) await store.save(shop, store.owner);
@@ -92,11 +95,22 @@ export class Store {
   }
   run<T>(fn: (s: Shop, p: PrivateStore) => T | Promise<T>): Promise<T> {
     return this.queue.add(async () => {
+      if (this.needsRecovery) {
+        const recovered = await Store.open(this.dir);
+        this.shop = recovered.shop;
+        this.owner = recovered.owner;
+        this.needsRecovery = false;
+      }
       const s = structuredClone(this.shop),
         p = structuredClone(this.owner),
         last = this.shop.activity.at(-1)?.id;
       const value = await fn(s, p);
-      await this.save(s, p);
+      try {
+        await this.save(s, p);
+      } catch (e) {
+        this.needsRecovery = true;
+        throw e;
+      }
       this.shop = s;
       this.owner = p;
       const event: StreamEvent = {
