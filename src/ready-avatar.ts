@@ -123,7 +123,9 @@ export function createBrowserAvatar(
 
   async function start(credentials: Credentials) {
     notify('connecting', false);
-    const timeout = window.setTimeout(fail, 25_000);
+    const timeout = window.setTimeout(fail, 45_000);
+    const workletReady = context.audioWorklet.addModule(pcmWorklet).then(() => true, () => false);
+    let showingVideo = false;
     try {
       const [response, sdk] = await Promise.all([
         fetch('session' in credentials ? '/api/ready/avatar' : '/api/manager/live/avatar', {
@@ -133,7 +135,6 @@ export function createBrowserAvatar(
           signal: controller.signal,
         }),
         import('@anam-ai/js-sdk'),
-        context.audioWorklet.addModule(pcmWorklet),
       ]);
       if (!response.ok) throw Error('Anam session unavailable');
       const { sessionToken } = tokenSchema.parse(await response.json());
@@ -142,8 +143,15 @@ export function createBrowserAvatar(
       client = avatar;
       avatar.addListener(sdk.AnamEvent.CONNECTION_CLOSED, fail);
       const firstFrame = new Promise<void>(resolve => {
-        video.addEventListener('loadeddata', () => resolve(), { once: true, signal: controller.signal });
-        avatar.addListener(sdk.AnamEvent.VIDEO_PLAY_STARTED, () => resolve());
+        const showFrame = () => {
+          if (showingVideo || controller.signal.aborted || !video.videoWidth || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+          showingVideo = true;
+          window.clearTimeout(timeout);
+          notify('ready', false);
+          resolve();
+        };
+        video.addEventListener('loadeddata', showFrame, { signal: controller.signal });
+        avatar.addListener(sdk.AnamEvent.VIDEO_PLAY_STARTED, showFrame);
       });
       const ready = new Promise<void>(resolve => avatar.addListener(sdk.AnamEvent.SESSION_READY, () => resolve()));
       const returnedAudio = new Promise<MediaStream>(resolve => avatar.addListener(sdk.AnamEvent.AUDIO_STREAM_STARTED, resolve));
@@ -154,14 +162,21 @@ export function createBrowserAvatar(
       const streaming = avatar.streamToVideoElement(video.id).then(() => {
         if (controller.signal.aborted) void avatar.stopStreaming().catch(() => {});
       });
-      const [, , audio] = await Promise.race([
-        Promise.all([firstFrame, ready, returnedAudio, streaming]),
-        abandoned,
-      ]);
-      if (!(video.srcObject instanceof MediaStream) || !video.videoWidth || controller.signal.aborted) return fail();
+      await Promise.race([Promise.all([firstFrame, ready, streaming]), abandoned]);
+      if (controller.signal.aborted || !await workletReady) return;
+      input = avatar.createAgentAudioInputStream({ encoding: 'pcm_s16le', sampleRate: 24000, channels: 1 });
+      worklet = new AudioWorkletNode(context, 'ready-avatar-pcm');
+      worklet.port.onmessage = event => forward(event.data);
+      const silent = context.createGain();
+      silent.gain.value = 0;
+      worklet.connect(silent).connect(context.destination);
+      attach();
+
+      const audio = await Promise.race([returnedAudio, abandoned]);
+      if (!(video.srcObject instanceof MediaStream) || controller.signal.aborted) return;
       const media = video.srcObject;
       const [audioTrack] = audio.getAudioTracks();
-      if (!audioTrack) return fail();
+      if (!audioTrack) return;
       const [existing] = media.getAudioTracks();
       if (existing !== audioTrack) {
         for (const item of media.getAudioTracks()) media.removeTrack(item);
@@ -169,23 +184,16 @@ export function createBrowserAvatar(
       } else {
         for (const extra of media.getAudioTracks().slice(1)) media.removeTrack(extra);
       }
-      input = avatar.createAgentAudioInputStream({ encoding: 'pcm_s16le', sampleRate: 24000, channels: 1 });
-      worklet = new AudioWorkletNode(context, 'ready-avatar-pcm');
-      worklet.port.onmessage = event => forward(event.data);
-      const silent = context.createGain();
-      silent.gain.value = 0;
-      worklet.connect(silent).connect(context.destination);
       outputMeter = new AudioWorkletNode(context, 'ready-avatar-pcm');
       outputMeter.port.onmessage = ({data}: MessageEvent<AudioFrame>) => {
         if (!video.muted && !video.paused && data.peak >= 0.007) notePlayback();
       };
       context.createMediaStreamSource(new MediaStream([audioTrack])).connect(outputMeter).connect(silent);
-      attach();
       if (controller.signal.aborted) return;
       connected = true;
       await enableAudio();
     } catch {
-      fail();
+      if (!showingVideo) fail();
     } finally {
       window.clearTimeout(timeout);
     }
