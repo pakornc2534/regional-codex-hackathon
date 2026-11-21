@@ -5,7 +5,7 @@ Bangkok time, 21 November 2026. Targets: M1 13:30, M2 15:00, M3 and feature free
 | Milestone | Status |
 |---|---|
 | M0 | Passed 11:50, deterministic seed S1 and typecheck |
-| M1 | Pending |
+| M1 | 12:12. Node container healthy, proxy host reached seed and planner. Waiting for production vhost and live AI key. |
 | M2 | Pending |
 | M3 | Pending |
 | M4 | Pending |

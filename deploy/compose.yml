@@ -1,0 +1,17 @@
+services:
+  shop:
+    build: .
+    image: ranrao-shop:local
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${SHOP_BIND_ADDRESS:?Set the private application address}:4310:4310"
+    volumes:
+      - shop-data:/data
+    healthcheck:
+      test: ["CMD","node","-e","fetch('http://127.0.0.1:4310/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+volumes:
+  shop-data:
