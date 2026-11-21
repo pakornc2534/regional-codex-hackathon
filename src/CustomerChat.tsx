@@ -68,6 +68,5 @@ export function CustomerChat() {
       <textarea ref={input} id="buyer-question" value={draft} onChange={e => setDraft(e.target.value)} maxLength={300} rows={2} readOnly={pending}/>
       <button className="primary" disabled={pending || !draft.trim()}>ส่งคำถาม</button>
     </form>
-  </main><FloatingDot message="อยากรู้ราคาหรือเช็กว่าสินค้ารุ่นไหนยังมีอยู่ พิมพ์ชื่อสินค้าถามร้านได้เลยค่ะ"
-    detailsLabel="ถามเรื่องสินค้า" onDetails={() => input.current?.focus()}/></>;
+  </main><FloatingDot/></>;
 }

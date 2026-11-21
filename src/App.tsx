@@ -2,8 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { CalendarDays, PanelsTopLeft, BookOpen, Calculator, ChevronRight, Maximize2, Menu, Minimize2, RotateCcw, Settings2, X } from 'lucide-react';
 import { ShopIcon } from './ShopIcon';
 import { CatalogFeature, OverviewMetrics, ProductFinder } from './Overview';
-import { DotEntry, DotPanel, dotVoiceMessage } from './DotPanel';
-import { FloatingDot, type FloatingDotHandle } from './FloatingDot';
+import { DotEntry, DotPanel } from './DotPanel';
+import { FloatingDot } from './FloatingDot';
 import { dotSummary } from '../shared/dot-monitor.mjs';
 import { Briefs, Competitors, Memory, Sales, SalesChart, Settings } from './Business';
 import { Dialog, Empty, Notice } from './components';
@@ -117,7 +117,6 @@ function ProductSelector({ state, variants, selected, onSelect, children }: { st
 
 export default function App() {
   const { state, loadError, refresh } = useShopState();
-  const floatingDot = useRef<FloatingDotHandle>(null);
   const mobileTabs = useRef<HTMLDivElement>(null);
   const hasWorkspace = Boolean(state);
   useLayoutEffect(() => {
@@ -130,8 +129,6 @@ export default function App() {
     observer.observe(tabs);
     return () => observer.disconnect();
   }, [hasWorkspace]);
-  const dotStale = Boolean(loadError || state?.hosted?.stale);
-  const dotSnapshot = useMemo(() => state && dotSummary(state, dotStale), [state, dotStale]);
   const [page, setPage] = useState<Page>(pageFromLocation);
   const [mobile, setMobile] = useState<'menu' | 'manager' | undefined>();
   const [selectedId, setSelectedId] = useState('');
@@ -287,10 +284,10 @@ export default function App() {
     scrollResults.current = true;
   }
 
-  if (!state || !dotSnapshot) {
+  if (!state) {
     return <div className="boot"><div className="brand-glyph"><ShopIcon name="storemark" size={36}/></div><h1>ร้านเรา</h1>
       {loadError ? <><Notice error>{loadError}</Notice><button className="primary" onClick={() => void refresh()}>ลองเชื่อมต่อร้านอีกครั้ง</button></> : <p role="status">กำลังเปิดร้านจำลอง…</p>}
-      <FloatingDot message="กำลังรอข้อมูลร้านจำลองค่ะ"/>
+      <FloatingDot/>
     </div>;
   }
   const { metrics } = state;
@@ -353,7 +350,7 @@ export default function App() {
       </div>
       <section className="panel dashboard-sales"><div className="section-head"><h2>ยอดขายรายวัน</h2><button className="text-btn" onClick={() => go('insights')}>ดูรายงาน</button></div><SalesChart state={state} from={metrics.period?.from} to={metrics.period?.to}/></section>
     </>; break;
-    case 'dot': content = <DotPanel snapshot={dotSnapshot} onListen={() => floatingDot.current?.listen()} onWork={area => {
+    case 'dot': content = <DotPanel snapshot={dotSummary(state, Boolean(loadError || state.hosted?.stale))} onWork={area => {
       if (area === 'orders' || area === 'returns') {
         setOrderStage(area === 'returns' ? 'returns' : 'picking');
         go('orders');
@@ -435,7 +432,7 @@ export default function App() {
       onDraft={next => planDrafts.current.set(`${selected.id}:${mode}`,next)}
       onClose={() => setMode(undefined)} onSubmit={submitPlan}/>}
     {!selected && page === 'plan' && <Empty>ร้านนี้ยังไม่มีสินค้าให้ประเมิน</Empty>}
-    {!mobile && !layer && !mode && <FloatingDot key={page} ref={floatingDot} message={dotVoiceMessage(dotSnapshot)} onDetails={() => go('dot')}/>}
+    {!mobile && !layer && !mode && <FloatingDot/>}
   </div>;
 }
 function isZone(key: string): key is SceneZone { return Object.hasOwn(stations, key); }

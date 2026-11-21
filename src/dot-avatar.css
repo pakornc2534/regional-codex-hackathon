@@ -37,14 +37,3 @@
 .dot-robot-arm-left { left: -10px; transform: rotate(14deg); } .dot-robot-arm-right { right: -10px; transform: rotate(-14deg); }
 .dot-robot-foot { bottom: -10px; width: 23px; height: 16px; border-radius: 7px 7px 5px 5px; border-bottom: 3px solid #403e37; background: var(--robot-copper); }
 .dot-robot-foot-left { left: 5px; } .dot-robot-foot-right { right: 5px; }
-.dot-robot[data-talking="true"] .dot-robot-mouth { animation: dot-mouth-talk .36s ease-in-out infinite alternate; }
-.dot-robot[data-talking="true"] .dot-robot-head { animation: dot-head-talk 1.35s ease-in-out infinite alternate; }
-.dot-robot[data-talking="true"] .dot-robot-arm-right { animation: dot-arm-talk 1.45s ease-in-out infinite alternate; }
-.dot-robot[data-talking="true"] .dot-robot-light { background: #bbfff2; box-shadow: 0 0 4px #8dcdbb; }
-@keyframes dot-mouth-talk { 0%, 84% { transform: scale(1, .55); } 36% { transform: scale(.72, 1.95); } 65% { transform: scale(.85, 1.15); } 100% { transform: scale(.65, 1.8); } }
-@keyframes dot-head-talk { from { transform: rotate(-4deg); } to { transform: translateY(-2px) rotate(0); } }
-@keyframes dot-arm-talk { from { transform: rotate(-17deg); } to { transform: rotate(-34deg); } }
-@media (prefers-reduced-motion: reduce) {
-  .dot-robot[data-talking="true"] :is(.dot-robot-mouth,.dot-robot-head,.dot-robot-arm-right) { animation: none; }
-  .dot-robot[data-talking="true"] .dot-robot-mouth { height: 7px; }
-}

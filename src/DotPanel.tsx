@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { Activity, BellRing, CalendarClock, Clock3, Download, MessageCircle, Sunrise, Volume2 } from 'lucide-react';
+import { Activity, BellRing, CalendarClock, Clock3, Download, MessageCircle, Sunrise } from 'lucide-react';
 import { dotSummary } from '../shared/dot-monitor.mjs';
+import { chatgptDotUrl } from './FloatingDot';
 import { baht, count, timestamp } from './model';
 import { workspaceNames } from './workspaces';
 import './dot-panel.css';
@@ -28,20 +29,8 @@ function pendingWork(snapshot: Snapshot) {
   return work.filter(item => item.value > 0);
 }
 
-export function dotVoiceMessage(snapshot: Snapshot) {
-  const pending = pendingWork(snapshot);
-  const salesMessage = snapshot.spike ? `ยอดซื้อพุ่งค่ะ มี ${count(snapshot.orders)} ออเดอร์ชำระแล้วในชั่วโมงล่าสุด` : 'ยอดซื้อยังอยู่ในช่วงปกติค่ะ';
-  const queueMessage = snapshot.overdue ? `ในคิวนี้มี ${count(snapshot.overdue)} ออเดอร์เลยกำหนด ควรจัดการก่อนค่ะ` : '';
-  return snapshot.stale ? 'ข้อมูลร้านยังไม่อัปเดตค่ะ ดอตจะรอข้อมูลใหม่ก่อนสรุปยอดซื้อและงานของร้าน' : [
-    salesMessage,
-    pending.length ? pending.map(item => `${item.title} ${count(item.value)} ${item.unit}`).join(' และ ') : 'ตอนนี้ไม่มีงานค้างในรายการที่ดอตติดตามค่ะ',
-    queueMessage,
-  ].filter(Boolean).join(' ');
-}
-
-export function DotPanel({ snapshot, onListen, onWork }: {
+export function DotPanel({ snapshot, onWork }: {
   snapshot: Snapshot;
-  onListen: () => void;
   onWork: (area: WorkArea) => void;
 }) {
   const pending = pendingWork(snapshot);
@@ -63,8 +52,7 @@ export function DotPanel({ snapshot, onListen, onWork }: {
       <a className="secondary" href="/downloads/raan-rao-dot-windows-1.zip" download><Download size={16} aria-hidden="true"/>ดาวน์โหลดหุ่น Dot สำหรับ Windows</a>
     </details>
     <div className="dot-links" aria-label="Dot ใน ChatGPT">
-      <button type="button" className="secondary" onClick={onListen}><Volume2 size={17} aria-hidden="true"/>ฟังสรุปจาก Dot</button>
-      <a className="primary" href="https://chatgpt.com/dots" target="_blank" rel="noopener noreferrer"><MessageCircle size={17} aria-hidden="true"/>เปิด Dot ของฉัน</a>
+      <a className="primary" href={chatgptDotUrl} target="_blank" rel="noopener noreferrer"><MessageCircle size={17} aria-hidden="true"/>เปิด Dot ของฉัน</a>
       <a className="secondary" href="https://chatgpt.com/scheduled" target="_blank" rel="noopener noreferrer"><CalendarClock size={17} aria-hidden="true"/>จัดการตารางใน ChatGPT</a>
     </div>
     <section id="sales-watch" className="panel dot-watch" aria-labelledby="dot-orders-heading">
