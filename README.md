@@ -1,1 +1,1 @@
-# regionak-codex-hackathon
+# regional-codex-hackathon
