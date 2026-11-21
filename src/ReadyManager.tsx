@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { AudioLines, Mic, MicOff, PhoneOff, Send, Volume2, X } from 'lucide-react';
-import type { RemoteParticipant, Room } from 'livekit-client';
+import type { RemoteParticipant, RemoteTrack, Room } from 'livekit-client';
 import { z } from 'zod';
+import { createReadyMicGate } from './ready-mic-gate';
 import { createBrowserAvatar, warmAvatarAudio, type BrowserAvatarStage } from './ready-avatar';
 import './ready-manager.css';
 
@@ -46,10 +47,12 @@ type ActiveCall = {
   credentials?: RoomCredentials;
   avatarAudio?: AudioContext;
   avatar?: ReturnType<typeof createBrowserAvatar>;
+  micGate?: ReturnType<typeof createReadyMicGate>;
 };
 
 function releaseCall(call: ActiveCall | undefined) {
   call?.abort.abort();
+  call?.micGate?.close();
   if (call?.avatar) call.avatar.close();
   else if (call?.avatarAudio?.state !== 'closed') void call?.avatarAudio?.close().catch(() => {});
   void call?.room?.disconnect().catch(() => {});
@@ -70,6 +73,7 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [mic, setMic] = useState<'off' | 'on' | 'requesting'>('off');
+  const [micPaused, setMicPaused] = useState(false);
   const [hasVideo, setHasVideo] = useState(false);
   const [avatarMode, setAvatarMode] = useState<'video' | 'audio'>();
   const [audioBlocked, setAudioBlocked] = useState(false);
@@ -91,6 +95,7 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
     playback.current?.replaceChildren();
     setCall({ phase: 'idle', error });
     setMic('off');
+    setMicPaused(false);
     setHasVideo(false);
     setAvatarMode(undefined);
     setAudioBlocked(false);
@@ -187,9 +192,36 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
       const videoElement = video.current;
       const audioContainer = playback.current;
       current.room = room;
+      const micGate = createReadyMicGate(paused => {
+        const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+        const media = micTrack?.mediaStreamTrack;
+        if (media && !micTrack.isMuted) media.enabled = !paused;
+        if (active.current === current) setMicPaused(paused);
+      });
+      current.micGate = micGate;
+      const applyMicGate = () => {
+        const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+        if (track && !track.isMuted) track.mediaStreamTrack.enabled = !micGate.isPaused();
+      };
       const isCurrent = () => active.current === current;
       const isAgent = (participant: RemoteParticipant) =>
         session.assistantIdentity ? participant.identity === session.assistantIdentity : participant.kind === ParticipantKind.AGENT;
+
+      const fallbackAudio = new Map<RemoteTrack, HTMLMediaElement | undefined>();
+      let avatarOwnsAudio = false;
+      const syncFallbackAudio = () => {
+        for (const [track, element] of fallbackAudio) {
+          if (avatarOwnsAudio && element) {
+            track.detach(element);
+            element.remove();
+            fallbackAudio.set(track, undefined);
+          } else if (!avatarOwnsAudio && !element && audioContainer) {
+            const playbackElement = track.attach();
+            audioContainer.append(playbackElement);
+            fallbackAudio.set(track, playbackElement);
+          }
+        }
+      };
 
       if (session.browserAvatar && videoElement && current.avatarAudio) {
         current.avatar = createBrowserAvatar(videoElement, current.avatarAudio, (stage, ownsAudio) => {
@@ -197,8 +229,9 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
           setBrowserAvatarStage(stage);
           setHasVideo(stage === 'ready');
           setAvatarAudioBlocked(stage === 'ready' && !ownsAudio);
-          audioContainer?.querySelectorAll('audio').forEach(element => { element.muted = ownsAudio; });
-        });
+          avatarOwnsAudio = ownsAudio;
+          syncFallbackAudio();
+        }, () => micGate.audio());
         void current.avatar.start(current.credentials);
       } else if (current.avatarAudio) {
         void current.avatarAudio.close().catch(() => {});
@@ -209,13 +242,16 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
       const update = () => {
         if (!isCurrent()) return;
         if (room.state === ConnectionState.Reconnecting) {
+          micGate.agentBusy(true);
           setCall({ phase: 'reconnecting' });
           return;
         }
         if (room.state !== ConnectionState.Connected) return;
         const assistant = Array.from(room.remoteParticipants.values()).find(isAgent);
         if (entered && !assistant) return stopCall('ผู้จัดการออกจากสายแล้ว เริ่มสายใหม่ได้ครับ');
-        const ready = Boolean(assistant && readyStates.has(assistant.attributes['lk.agent.state']));
+        const assistantState = assistant?.attributes['lk.agent.state'];
+        micGate.agentBusy(assistantState === 'thinking' || assistantState === 'speaking');
+        const ready = Boolean(assistantState && readyStates.has(assistantState));
         if (ready) {
           entered = true;
           window.clearTimeout(timeout);
@@ -228,6 +264,8 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
         .on(RoomEvent.ParticipantConnected, update)
         .on(RoomEvent.ParticipantDisconnected, update)
         .on(RoomEvent.ParticipantAttributesChanged, update)
+        .on(RoomEvent.LocalTrackPublished, applyMicGate)
+        .on(RoomEvent.TrackUnmuted, applyMicGate)
         .on(RoomEvent.Disconnected, () => {
           if (isCurrent()) stopCall('สายสนทนาสิ้นสุดแล้ว เริ่มสายใหม่ได้ครับ');
         })
@@ -240,9 +278,8 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
             track.attach(videoElement);
             setHasVideo(true);
           } else if (track.kind === Track.Kind.Audio && audioContainer) {
-            const element = track.attach();
-            element.muted = current.avatar?.ownsAudio() ?? false;
-            audioContainer.append(element);
+            if (!fallbackAudio.has(track)) fallbackAudio.set(track, undefined);
+            syncFallbackAudio();
             if (isAgent(participant)) current.avatar?.attachTrack(track.mediaStreamTrack);
           }
         })
@@ -252,7 +289,12 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
             if (isCurrent()) setHasVideo(false);
           } else {
             current.avatar?.detachTrack(track.mediaStreamTrack);
-            track.detach().forEach(element => element.remove());
+            const element = fallbackAudio.get(track);
+            if (element) {
+              track.detach(element);
+              element.remove();
+            }
+            fallbackAudio.delete(track);
           }
         });
 
@@ -326,8 +368,13 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
     setMic('requesting');
     setCall({ phase: 'connected' });
     try {
-      await room.localParticipant.setMicrophoneEnabled(enable);
-      if (active.current === current) setMic(enable ? 'on' : 'off');
+      const publication = await room.localParticipant.setMicrophoneEnabled(enable, {
+        echoCancellation: true, noiseSuppression: true, autoGainControl: true,
+      });
+      if (active.current === current) {
+        if (enable && current.micGate?.isPaused() && publication?.track) publication.track.mediaStreamTrack.enabled = false;
+        setMic(enable ? 'on' : 'off');
+      }
       else if (enable) await room.localParticipant.setMicrophoneEnabled(false);
     } catch {
       if (active.current !== current) return;
@@ -344,6 +391,7 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
     setSending(true);
     setCall({ phase: 'connected' });
     try {
+      current.micGate?.audio();
       await current.room.localParticipant.sendText(text, { topic: 'lk.chat' });
       if (active.current !== current) return;
       record({ id: crypto.randomUUID(), kind: 'chat', from: 'owner', text });
@@ -382,7 +430,9 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
         </div>
 
         <div className="ready-controls">
-          <span role="status" className="ready-status" data-live={live}>{connectionLabel}</span>
+          <span role="status" className="ready-status" data-live={live} data-mic-paused={mic === 'on' && micPaused}>
+            {mic === 'on' && micPaused && live ? 'พักไมค์ขณะพร้อมตอบ' : connectionLabel}
+          </span>
           {!inCall
             ? <button className="ready-primary" type="button" onClick={() => void startCall()}><AudioLines size={16}/> เริ่มคุยสด</button>
             : <>

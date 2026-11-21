@@ -27,6 +27,7 @@ export function createBrowserAvatar(
   video: HTMLVideoElement,
   context: AudioContext,
   notify: (stage: BrowserAvatarStage, ownsAudio: boolean) => void,
+  notePlayback: () => void,
 ) {
   const controller = new AbortController();
   let client: AnamClient | undefined;
@@ -34,6 +35,7 @@ export function createBrowserAvatar(
   let track: MediaStreamTrack | undefined;
   let source: MediaStreamAudioSourceNode | undefined;
   let worklet: AudioWorkletNode | undefined;
+  let outputMeter: AudioWorkletNode | undefined;
   let connected = false;
   let ownsAudio = false;
   let inSequence = false;
@@ -48,6 +50,10 @@ export function createBrowserAvatar(
     source?.disconnect();
     worklet?.disconnect();
     if (worklet) worklet.port.onmessage = null;
+    if (outputMeter) {
+      outputMeter.port.onmessage = null;
+      outputMeter.disconnect();
+    }
     if (context.state !== 'closed') void context.close().catch(() => {});
     void client?.stopStreaming().catch(() => {});
     video.muted = true;
@@ -64,6 +70,7 @@ export function createBrowserAvatar(
     if (!input || controller.signal.aborted) return;
     try {
       if (peak >= 0.007) {
+        notePlayback();
         if (!inSequence) {
           for (const frame of preroll) input.sendAudioChunk(audioChunk(frame));
           preroll = [];
@@ -99,6 +106,7 @@ export function createBrowserAvatar(
 
   async function enableAudio() {
     if (!connected || controller.signal.aborted) return;
+    notify('ready', true);
     video.muted = false;
     try {
       await video.play();
@@ -152,20 +160,29 @@ export function createBrowserAvatar(
       ]);
       if (!(video.srcObject instanceof MediaStream) || !video.videoWidth || controller.signal.aborted) return fail();
       const media = video.srcObject;
-      for (const audioTrack of audio.getAudioTracks()) {
-        if (!media.getAudioTracks().some(item => item.id === audioTrack.id)) media.addTrack(audioTrack);
+      const [audioTrack] = audio.getAudioTracks();
+      if (!audioTrack) return fail();
+      const [existing] = media.getAudioTracks();
+      if (existing !== audioTrack) {
+        for (const item of media.getAudioTracks()) media.removeTrack(item);
+        media.addTrack(audioTrack);
+      } else {
+        for (const extra of media.getAudioTracks().slice(1)) media.removeTrack(extra);
       }
-      if (!media.getAudioTracks().length) return fail();
       input = avatar.createAgentAudioInputStream({ encoding: 'pcm_s16le', sampleRate: 24000, channels: 1 });
       worklet = new AudioWorkletNode(context, 'ready-avatar-pcm');
       worklet.port.onmessage = event => forward(event.data);
       const silent = context.createGain();
       silent.gain.value = 0;
       worklet.connect(silent).connect(context.destination);
+      outputMeter = new AudioWorkletNode(context, 'ready-avatar-pcm');
+      outputMeter.port.onmessage = ({data}: MessageEvent<AudioFrame>) => {
+        if (!video.muted && !video.paused && data.peak >= 0.007) notePlayback();
+      };
+      context.createMediaStreamSource(new MediaStream([audioTrack])).connect(outputMeter).connect(silent);
       attach();
       if (controller.signal.aborted) return;
       connected = true;
-      notify('ready', false);
       await enableAudio();
     } catch {
       fail();
@@ -184,7 +201,6 @@ export function createBrowserAvatar(
       track = undefined;
       attach();
     },
-    ownsAudio: () => ownsAudio,
     enableAudio,
     start,
     close,
