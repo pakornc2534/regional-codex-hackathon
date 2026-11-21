@@ -12,12 +12,19 @@
     "build": "vite build && node scripts/build-worker.mjs",
     "test": "node --test test/*.test.mjs",
     "typecheck": "tsc --noEmit",
-    "relay": "node web-host/relay.mjs"
+    "relay": "node web-host/relay.mjs",
+    "manager:live": "node server/live-manager-agent.mjs dev"
   },
   "dependencies": {
+    "@anam-ai/js-sdk": "4.29.1",
     "@fontsource-variable/noto-sans-thai": "^5.3.0",
+    "@livekit/agents": "1.10.1",
+    "@livekit/agents-plugin-anam": "1.10.1",
+    "@livekit/agents-plugin-openai": "1.10.1",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
+    "livekit-client": "2.25.0",
+    "livekit-server-sdk": "2.20.1",
     "lucide-react": "^1.77.0",
     "openai": "^7.62.0",
     "react": "^19.3.1",

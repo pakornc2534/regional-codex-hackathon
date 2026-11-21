@@ -10,6 +10,7 @@ import * as domain from './domain/index.mjs'
 import {chooseOption} from './approved-actions.mjs'
 import {customerChat} from './customer-chat.mjs'
 import {manager} from './manager-controller.mjs'
+import {liveManagerSessions} from './live-manager-session.mjs'
 const port=Number(process.env.PORT||4310), root=resolve('dist/client')
 const shop=openShop(resolve(process.env.DATA_DIR||'.data')),events=new Set(),boot=randomUUID()
 let version=0
@@ -20,6 +21,7 @@ if(process.env.DEMO_CLOCK!=='manual'){
 }
 const agent=manager(shop,changed), customer=customerChat(shop)
 const admitAi = createAiRateLimit(process.env)
+const liveManager=liveManagerSessions(shop)
 const allowed=new Set([port,...(port===4311?[4310]:[])].flatMap(p=>['localhost:'+p,'127.0.0.1:'+p]))
 function reject(status,message){throw Object.assign(Error(message),{status})}
 const server=http.createServer(async(req,res)=>{
@@ -33,7 +35,7 @@ const server=http.createServer(async(req,res)=>{
       return json(dotSummary(domain.readWorld(shop.world),false))
     }
     if(req.method==='GET'){
-      if(path==='/api/state')return json({...domain.readWorld(shop.world),owner:shop.owner,connection:agent.status()})
+      if(path==='/api/state')return json({...domain.readWorld(shop.world),owner:shop.owner,connection:agent.status(),liveManagerAvailable:liveManager.available})
       if(path==='/api/stamp')return json({version:boot+'-'+version})
       if(path==='/api/events'){
         res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive'});res.write(': ready\n\n');events.add(res);req.on('close',()=>events.delete(res));return
@@ -42,7 +44,7 @@ const server=http.createServer(async(req,res)=>{
       const file=resolve(root,'.'+decodeURIComponent(path.endsWith('/')?path+'index.html':path))
       if(!file.startsWith(root+sep))reject(403,'เส้นทางไม่ถูกต้อง')
       const bytes=await readFile(file).catch(()=>reject(404,'ไม่พบไฟล์'))
-      res.writeHead(200,{'Content-Type':({'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.woff2':'font/woff2','.mp3':'audio/mpeg','.zip':'application/zip'})[extname(file)]||'application/octet-stream'});return res.end(bytes)
+      res.writeHead(200,{'Content-Type':({'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.woff2':'font/woff2','.mp3':'audio/mpeg','.zip':'application/zip'})[extname(file)]||'application/octet-stream'});return res.end(bytes)
     }
     if(req.method!=='POST'||!req.headers['content-type']?.startsWith('application/json'))reject(415,'ต้องส่งข้อมูล JSON')
     const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>32000)reject(413,'ข้อมูลยาวเกินกำหนด');chunks.push(chunk)}
@@ -66,6 +68,15 @@ const server=http.createServer(async(req,res)=>{
         if(b.type==='choose_option'){const result=chooseOption(shop,b);changed();return json(result)}
         const out=domain.applyCommand(shop.world,b);shop.saveWorld(out.world);if(shop.world.managerPaused)agent.stop();changed();return json(out.receipt)
       }
+      case '/api/manager/live/session':
+      case '/api/manager/live/avatar':
+      case '/api/manager/live/end': {
+        if (!req.headers.origin) reject(403,'เปิดการคุยสดจากหน้าเว็บร้านเท่านั้น')
+        if (path.endsWith('/session')) return json(await liveManager.start())
+        if (path.endsWith('/avatar')) return json(await liveManager.avatar(b))
+        return json(await liveManager.end(b))
+      }
+      case '/api/manager/live/read':return json(liveManager.read(b,req.headers))
       case '/api/customer/ask':return json(customer.submit(b,checkAiRate))
       case '/api/customer/status':return json(customer.status(b.id))
       case '/api/chat':checkAiRate();return json(agent.enqueue(b),202)

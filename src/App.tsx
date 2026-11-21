@@ -3,7 +3,7 @@ import { CalendarDays, PanelsTopLeft, BookOpen, Calculator, ChevronRight, Maximi
 import { ShopIcon } from './ShopIcon';
 import { CatalogFeature, OverviewMetrics, ProductFinder } from './Overview';
 import { DotEntry, DotPanel } from './DotPanel';
-import { FloatingDot } from './FloatingDot';
+import { ReadyManager } from './ReadyManager';
 import { dotSummary } from '../shared/dot-monitor.mjs';
 import { Briefs, Competitors, Memory, Sales, SalesChart, Settings } from './Business';
 import { Dialog, Empty, Notice } from './components';
@@ -15,7 +15,7 @@ import type { SceneZone } from './scene/ShopScene';
 import { navigation, stations, workspaceNames, type Page } from './workspaces';
 const ShopScene = lazy(() => import('./scene/ShopScene'));
 
-type Layer = { kind: 'zone'; zone: SceneZone; variantId?: string; orderId?: string } | { kind: 'case'; id: string } | { kind: 'reset' } | { kind: 'selector' };
+type Layer = { kind: 'zone'; zone: SceneZone; variantId?: string; orderId?: string } | { kind: 'case'; id: string } | { kind: 'reset' } | { kind: 'selector' } | { kind: 'codex' };
 
 const descriptions: Record<Page, string> = {
   overview: '',
@@ -117,6 +117,7 @@ function ProductSelector({ state, variants, selected, onSelect, children }: { st
 
 export default function App() {
   const { state, loadError, refresh } = useShopState();
+  const liveManager = Boolean(state?.liveManagerAvailable && !state.hosted);
   const mobileTabs = useRef<HTMLDivElement>(null);
   const hasWorkspace = Boolean(state);
   useLayoutEffect(() => {
@@ -232,14 +233,20 @@ export default function App() {
     setLayer({ kind: 'zone', zone, variantId });
   }, []);
   function openCase(id: string) { setMobile(undefined); setResearch(false); setDiscussPlan(false); setRoomCase(id); setLayer({ kind: 'case', id }); }
+  function closeCodex() {
+    setLayer(undefined);
+    requestAnimationFrame(() => {
+      if (document.activeElement === document.body) document.querySelector<HTMLButtonElement>('.ready-launcher')?.focus();
+    });
+  }
   function ask(question: string, options: { caseId?: string; research?: boolean; plan?: boolean } = {}) {
     setRoomCase(options.caseId);
     setResearch(!!options.research);
     setDiscussPlan(!!options.plan);
     setDraft(question);
-    if (window.matchMedia('(max-width: 949px)').matches) setMobile('manager');
-    requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('.manager-slot textarea')?.focus());
-    setLayer(undefined);
+    if (!liveManager && window.matchMedia('(max-width: 949px)').matches) setMobile('manager');
+    setLayer(liveManager ? {kind: 'codex'} : undefined);
+    requestAnimationFrame(() => document.getElementById('manager-draft')?.focus());
     setFullscreen(false);
   }
   async function invoke(path: string, body: unknown, success?: string) {
@@ -287,7 +294,6 @@ export default function App() {
   if (!state) {
     return <div className="boot"><div className="brand-glyph"><ShopIcon name="storemark" size={36}/></div><h1>ร้านเรา</h1>
       {loadError ? <><Notice error>{loadError}</Notice><button className="primary" onClick={() => void refresh()}>ลองเชื่อมต่อร้านอีกครั้ง</button></> : <p role="status">กำลังเปิดร้านจำลอง…</p>}
-      <FloatingDot/>
     </div>;
   }
   const { metrics } = state;
@@ -379,8 +385,12 @@ export default function App() {
     else dialogContent = <Fulfillment key={layer.zone} state={state} variants={variants} action={action} initial={zoneTab[layer.zone] ?? 'picking'} forOrder={layer.orderId}/>;
   }
 
-  return <div className="app-shell">
-    <header className="mobile-bar"><button className="icon-btn" aria-label="เปิดเมนูร้าน" onClick={() => setMobile(mobile === 'menu' ? undefined : 'menu')}><Menu size={21}/></button><button className="mobile-brand" onClick={() => go('overview')}><ShopIcon name="storemark" size={29}/> ร้านเรา</button><button className="icon-btn" aria-label="เปิดผู้จัดการ AI" onClick={() => setMobile(mobile === 'manager' ? undefined : 'manager')}><ShopIcon name="manager" size={25}/></button></header>
+  const codexDesk = <Manager onOpenCase={openCase} state={state} room={room} variant={variants.find(item => item.id === room.variantId)} openCase={roomCaseData ? () => openCase(roomCaseData.id) : undefined} draft={draft} setDraft={setDraft} send={send} cancel={jobId => void invoke('/api/chat/cancel', {jobId,runId:state.runId})}
+    reconnect={() => void invoke('/api/reconnect', {}, 'ตรวจการเชื่อมต่อแล้ว')} action={action} busy={unavailable}/>;
+
+  const showsSelectedProduct = page === 'overview' || page === 'plan' || page === 'scene';
+  return <div className={liveManager ? 'app-shell with-live-manager' : 'app-shell'}>
+    <header className="mobile-bar"><button className="icon-btn" aria-label="เปิดเมนูร้าน" onClick={() => setMobile(mobile === 'menu' ? undefined : 'menu')}><Menu size={21}/></button><button className="mobile-brand" onClick={() => go('overview')}><ShopIcon name="storemark" size={29}/> ร้านเรา</button>{!liveManager && <button className="icon-btn" aria-label="เปิดผู้จัดการ AI" onClick={() => setMobile(mobile === 'manager' ? undefined : 'manager')}><ShopIcon name="manager" size={25}/></button>}</header>
     {mobile && <button className="mobile-scrim" aria-label="ปิดแผง" onClick={() => setMobile(undefined)}/>}
     <aside className={mobile === 'menu' ? 'sidebar open' : 'sidebar'} role={mobile === 'menu' ? 'dialog' : undefined} aria-modal={mobile === 'menu' || undefined} aria-label="เมนูร้าน">
       <button className="brand" onClick={() => go('overview')}><span className="brand-glyph"><ShopIcon name="storemark" size={43}/></span><span><strong>ร้านเรา</strong></span></button>
@@ -401,12 +411,16 @@ export default function App() {
       <button aria-current={page === 'overview' ? 'page' : undefined} onClick={() => go('overview')}><ShopIcon name="overview"/>{workspaceNames.overview}</button>
       <button aria-current={page === 'scene' ? 'page' : undefined} onClick={() => go('scene')}><ShopIcon name="scene"/>{workspaceNames.scene}</button>
       <button aria-current={page === 'cases' ? 'page' : undefined} onClick={() => go('cases')}><ShopIcon name="cases"/>{workspaceNames.cases}</button>
-      <button onClick={() => setMobile('manager')}><ShopIcon name="manager"/>ผู้จัดการ AI</button>
+      {!liveManager && <button onClick={() => setMobile('manager')}><ShopIcon name="manager"/>ผู้จัดการ AI</button>}
     </div>
-    <div role={mobile === 'manager' ? 'dialog' : undefined} aria-modal={mobile === 'manager' || undefined} aria-label="ผู้จัดการ AI" className={mobile === 'manager' ? 'manager-slot open' : 'manager-slot'}>{mobile === 'manager' && <button className="manager-close icon-btn" aria-label="ปิดผู้จัดการ" onClick={() => setMobile(undefined)}><X size={18}/></button>}
-      <Manager onOpenCase={openCase} state={state} room={room} variant={variants.find(item => item.id === room.variantId)} openCase={roomCaseData ? () => openCase(roomCaseData.id) : undefined} draft={draft} setDraft={setDraft} send={send} cancel={jobId => void invoke('/api/chat/cancel', {jobId,runId:state.runId})}
-        reconnect={() => void invoke('/api/reconnect', {}, 'ตรวจการเชื่อมต่อแล้ว')} action={action} busy={unavailable}/>
-    </div>
+    {!liveManager && <div role={mobile === 'manager' ? 'dialog' : undefined} aria-modal={mobile === 'manager' || undefined} aria-label="ผู้จัดการ AI" className={mobile === 'manager' ? 'manager-slot open' : 'manager-slot'}>{mobile === 'manager' && <button className="manager-close icon-btn" aria-label="ปิดผู้จัดการ" onClick={() => setMobile(undefined)}><X size={18}/></button>}
+      {codexDesk}
+    </div>}
+    {liveManager && layer?.kind === 'codex' && <Dialog title="งานและประวัติ Codex" onClose={closeCodex}>
+      {commandError && <Notice error>{commandError}</Notice>}
+      {feedback && <p role="status" className="feedback">{feedback}</p>}
+      {codexDesk}
+    </Dialog>}
     {layer?.kind === 'zone' && <Dialog title={workspaceNames[stations[layer.zone].page]}
       description={layer.zone === 'product' && layerVariant ? [stations.product.name, layerVariant.productName, layerVariant.name, layerVariant.sellerSku].filter(Boolean).join(' · ') : `${stations[layer.zone].name} · ${sceneLabels[layer.zone].detail}`} onClose={() => setLayer(undefined)}>
       {commandError && <Notice error>{commandError}</Notice>}{feedback && <p role="status" className="feedback">{feedback}</p>}
@@ -432,7 +446,12 @@ export default function App() {
       onDraft={next => planDrafts.current.set(`${selected.id}:${mode}`,next)}
       onClose={() => setMode(undefined)} onSubmit={submitPlan}/>}
     {!selected && page === 'plan' && <Empty>ร้านนี้ยังไม่มีสินค้าให้ประเมิน</Empty>}
-    {!mobile && !layer && !mode && <FloatingDot/>}
+    {liveManager && <ReadyManager shopName={state.shop.name} shopView={{
+      page,
+      selectedVariantId: showsSelectedProduct ? selected?.id : undefined,
+      plan: showsSelectedProduct && evaluation.result && !evaluation.loading && !evaluation.stale ? inputs : undefined,
+      conversationId: page === 'inbox' ? (state.conversations.find(room => room.id === inboxId) ?? state.conversations[0])?.id : undefined,
+    }} hidden={Boolean(mobile || layer || mode || fullscreen)} onOpenTextManager={() => setLayer({ kind: 'codex' })}/>}
   </div>;
 }
 function isZone(key: string): key is SceneZone { return Object.hasOwn(stations, key); }
