@@ -46,6 +46,26 @@ npm start
 
 </details>
 
+## ผู้จัดการสดพร้อม
+
+เปิดปุ่ม **พร้อม** มุมขวาล่างจากร้านบนเครื่อง กด **เริ่มคุยสด** แล้วเลือกพิมพ์หรือเปิดไมโครโฟน ผู้จัดการอ่านข้อมูลจากร้านจำลอง bankzar และแนบลิงก์เมื่อค้นข้อมูลคู่แข่งจากเว็บ
+
+ตั้ง `LIVE_MANAGER_ENABLED=true`, `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` และ `LIVE_MANAGER_TOOL_SECRET` ตามตัวอย่างใน `.env.example` ใช้ไฟล์ส่วนตัว เช่น `.env.ready.local` ตั้ง `OPENAI_API_KEY` และ `LIVE_MANAGER_API_ORIGIN` ชี้ไปที่ Node API ของร้าน จากนั้นเปิดสอง Terminal จากโฟลเดอร์โปรเจกต์
+
+```sh
+npm ci
+npm run build
+node --env-file=.env.ready.local server/api.mjs
+```
+
+```sh
+node --env-file=.env.ready.local server/live-manager-agent.mjs dev
+```
+
+สำหรับทดลองบนคอม ใช้ LiveKit แบบพัฒนาได้โดยเปิดพอร์ตเฉพาะเครื่องและใช้ `ws://127.0.0.1:7880` พร้อมคีย์ทดสอบของ LiveKit โหมดนี้แสดงภาพพร้อมแบบนิ่งและใช้ OpenAI Realtime สำหรับเสียง เพื่อเปิดภาพเคลื่อนไหว ตั้ง `ANAM_API_KEY` และ `ANAM_AVATAR_ID` ของพร้อมเดิม แล้วใช้ LiveKit ที่ Anam เชื่อมถึงได้ผ่าน `wss://` ค่าใช้ OpenAI API มาจากโปรเจกต์ที่ถือคีย์
+
+โหมดคุยสดเปิดได้บน Node API ที่รันบนเครื่องเท่านั้น ลิงก์เดโมสาธารณะไม่ออกโทเคนการโทร
+
 ## โฮสต์เดโม
 
 GitHub เก็บซอร์สสาธารณะ ส่วน Sites เผยแพร่หน้าเว็บและเกตเวย์ ตั้งค่า `RELAY_SECRET` เป็น secret ใน Sites และบนเครื่องที่รัน relay ตั้ง `PUBLIC_DEMO_ENABLED=true` เฉพาะร้านสาธิตจำลอง ใช้ binding ชื่อ BUCKET สำหรับคิวและภาพร้าน ตั้ง SITE_URL ให้ตรงกับต้นทาง HTTPS ของ Site

@@ -3,7 +3,7 @@ import { CalendarDays, PanelsTopLeft, BookOpen, Calculator, ChevronRight, Maximi
 import { ShopIcon } from './ShopIcon';
 import { CatalogFeature, OverviewMetrics, ProductFinder } from './Overview';
 import { DotEntry, DotPanel } from './DotPanel';
-import { FloatingDot } from './FloatingDot';
+import { ReadyManager } from './ReadyManager';
 import { dotSummary } from '../shared/dot-monitor.mjs';
 import { Briefs, Competitors, Memory, Sales, SalesChart, Settings } from './Business';
 import { Dialog, Empty, Notice } from './components';
@@ -287,7 +287,6 @@ export default function App() {
   if (!state) {
     return <div className="boot"><div className="brand-glyph"><ShopIcon name="storemark" size={36}/></div><h1>ร้านเรา</h1>
       {loadError ? <><Notice error>{loadError}</Notice><button className="primary" onClick={() => void refresh()}>ลองเชื่อมต่อร้านอีกครั้ง</button></> : <p role="status">กำลังเปิดร้านจำลอง…</p>}
-      <FloatingDot/>
     </div>;
   }
   const { metrics } = state;
@@ -432,7 +431,10 @@ export default function App() {
       onDraft={next => planDrafts.current.set(`${selected.id}:${mode}`,next)}
       onClose={() => setMode(undefined)} onSubmit={submitPlan}/>}
     {!selected && page === 'plan' && <Empty>ร้านนี้ยังไม่มีสินค้าให้ประเมิน</Empty>}
-    {!mobile && !layer && !mode && <FloatingDot/>}
+    {!mobile && !layer && !mode && !fullscreen && <ReadyManager shopName={state.shop.name} onOpenTextManager={() => {
+      if (window.matchMedia('(max-width: 949px)').matches) setMobile('manager');
+      else document.querySelector<HTMLTextAreaElement>('.manager-slot textarea')?.focus();
+    }}/>}
   </div>;
 }
 function isZone(key: string): key is SceneZone { return Object.hasOwn(stations, key); }
