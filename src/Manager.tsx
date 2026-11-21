@@ -24,9 +24,9 @@ function CaseStatus({ item }: { item: Case }) {
   </span>;
 }
 
-export function CaseList({ state, onOpen }: { state: ShopState; onOpen: (item: Case) => void }) {
+export function CaseList({ state, onOpen, title = 'เคสที่ต้องติดตาม' }: { state: ShopState; onOpen: (item: Case) => void; title?: string }) {
   return <section className="panel case-queue">
-    <div className="section-head"><div><h2>เคสที่ต้องติดตาม</h2></div><span className="queue-total">{count(state.cases.length)} เคส</span></div>
+    <div className="section-head"><div><h2>{title}</h2></div><span className="queue-total">{count(state.cases.length)} เคส</span></div>
     {state.cases.length ? <div className="case-rows">{state.cases.map(item => <button key={item.id} className="case-row" onClick={() => onOpen(item)}>
       <CaseMark type={item.type}/><span className="case-row-copy"><strong>{item.title}</strong><small>{item.evidence.at(-1)}</small></span>
       <CaseStatus item={item}/>

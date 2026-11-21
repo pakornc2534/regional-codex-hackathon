@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, ChevronDown, ScanSearch, Search } from 'lucide-react';
 import { ProductPicture } from './ProductPicture';
 import { ShopIcon } from './ShopIcon';
+import { workspaceNames } from './workspaces';
 import { baht, count, type ShopState, type Variant } from './model';
 
 function SevenDays({ values }: { values: number[] }) {
@@ -18,19 +19,19 @@ export function OverviewMetrics({ state, onSales, onOrders, onPacking }: {
   const days = metrics.daily.filter(day => period && day.date >= period.from && day.date <= period.to);
   return <div className="overview-metrics" aria-label="ตัวเลขสรุปร้าน">
     <button className="kpi sales-kpi" onClick={onSales}>
-      <span className="kpi-label"><ShopIcon name="finance"/>ยอดขาย 7 วัน</span>
+      <span className="kpi-label"><ShopIcon name="finance"/>{workspaceNames.finance}</span>
       <span className="kpi-data"><strong>{baht(metrics.sales7d)}</strong><SevenDays values={days.map(d => d.online + d.pos)}/></span>
-      <small>รวมออนไลน์และหน้าร้าน</small>
+      <small>ยอดขาย 7 วัน รวมออนไลน์และหน้าร้าน</small>
     </button>
     <button className="kpi" onClick={onOrders}>
-      <span className="kpi-label"><ShopIcon name="orders"/>ออเดอร์ 7 วัน</span>
+      <span className="kpi-label"><ShopIcon name="insights"/>{workspaceNames.insights}</span>
       <span className="kpi-data"><strong>{count(metrics.orders7d)}</strong><SevenDays values={days.map(d => d.orders)}/></span>
-      <small>ชำระเงินแล้ว</small>
+      <small>ออเดอร์ชำระแล้วใน 7 วัน</small>
     </button>
     <button className="kpi packing-kpi" onClick={onPacking}>
-      <span className="kpi-label"><ShopIcon name="packing"/>คิวแพ็ก</span>
+      <span className="kpi-label"><ShopIcon name="orders"/>{workspaceNames.orders}</span>
       <span className="kpi-data"><strong>{count(metrics.queueUnits)} <em>ชิ้น</em></strong></span>
-      <small>จาก {count(metrics.queueOrders)} ออเดอร์</small>
+      <small>คิวแพ็กจาก {count(metrics.queueOrders)} ออเดอร์</small>
     </button>
   </div>;
 }

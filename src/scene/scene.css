@@ -1,5 +1,7 @@
+.scene-card { container: shop-scene / inline-size; }
+.scene-card:not(.scene-fullscreen) .stage:has(.diorama[data-labels="shown"]) { min-height: 360px; }
 .diorama {
-  --diorama-backdrop: #e8ecec;
+  --diorama-backdrop: #263a42;
   --diorama-ink: #fff9f0;
   --diorama-ink-soft: #eef0ed;
   --diorama-label: #26323cf5;
@@ -13,11 +15,57 @@
   width: 100%;
   height: 100%;
   min-height: 0;
-  background: var(--diorama-backdrop);
+  background: radial-gradient(ellipse at 50% 44%, #3b4f54, var(--diorama-backdrop) 70%, #203139);
   color: var(--diorama-ink);
   font-family: var(--diorama-font);
   overflow: clip;
 }
+
+.diorama-view { position: absolute; inset: 0; }
+.diorama[data-labels="shown"] .diorama-view { inset: 3px clamp(112px, 16cqw, 174px) 13px; }
+.diorama-callouts, .diorama-leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.diorama-leaders g { visibility: hidden; opacity: .82; }
+.diorama-leaders polyline { fill: none; stroke: #f3d6a0; stroke-width: 1.2; stroke-linejoin: round; stroke-linecap: round; }
+.diorama-leaders circle { fill: #ffdf9b; stroke: #453725; stroke-width: 1.1; }
+.diorama-leaders:has(g[data-active="true"]) g:not([data-active="true"]) { opacity: .28; }
+.diorama-leaders g[data-active="true"] { opacity: 1; }
+.diorama-leaders g[data-active="true"] polyline { stroke: #ffe49f; stroke-width: 2.2; }
+.diorama-rail {
+  position: absolute;
+  inset-block: 10px 62px;
+  width: clamp(135px, 19cqw, 170px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 5px;
+}
+.diorama-rail[data-side="left"] { left: 9px; }
+.diorama-rail[data-side="right"] { right: 9px; }
+.diorama-callout {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 43px;
+  padding: 5px 8px;
+  border: 1px solid #637a81;
+  border-radius: 7px;
+  background: #22343b;
+  color: #fff6e6;
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.diorama-rail[data-side="left"] .diorama-callout { flex-direction: row-reverse; text-align: end; }
+.diorama-callout svg { flex: none; color: #e4c58f; }
+.diorama-callout span { min-width: 0; }
+.diorama-callout :is(strong,small) { display: block; }
+.diorama-callout strong { font-size: 14px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
+.diorama-callout small { margin-top: 1px; color: #c9d5d5; font-size: 12px; line-height: 1.35; }
+.diorama-callout[data-active="true"], .diorama-callout:hover { border-color: #ebc88d; background: #37494a; }
+.diorama-callout:focus-visible { outline: 2px solid #ffe098; outline-offset: 2px; }
+.diorama-callout:disabled { cursor: default; }
 
 .diorama-pins {
   position: absolute;
@@ -37,10 +85,11 @@
   line-height: 1.45;
   cursor: pointer;
 }
-.diorama:has(> .diorama-fallback) .diorama-pins { display: none; }
+.diorama:has(> .diorama-view > .diorama-fallback) :is(.diorama-pins,.diorama-callouts,.diorama-markers) { display: none; }
+.diorama:has(> .diorama-view > .diorama-fallback) .diorama-view { inset: 0; overflow: auto; background: #e8ecec; }
 .diorama-pins[aria-pressed="true"] { border-color: var(--diorama-hot); }
 .diorama-pins:focus-visible { outline: 2px solid var(--diorama-hot); outline-offset: 2px; }
-.diorama[data-labels="hidden"] .diorama-marker-position:not([data-hot]) .diorama-dot {
+.diorama-marker-position:not([data-hot]) .diorama-dot {
   opacity: 0;
   pointer-events: none;
 }
@@ -173,6 +222,7 @@
 }
 
 .diorama-fallback, .diorama-loading { color: #2c3840; }
+.diorama-loading { color: var(--diorama-ink-soft); }
 .diorama-fallback p {
   font-size: 13px;
   color: #49565c;
@@ -215,4 +265,24 @@
     max-width: 140px;
     font-size: 11px;
   }
+}
+
+@container shop-scene (max-width: 640px) {
+  .scene-card:not(.scene-fullscreen) .stage:has(.diorama[data-labels="shown"]) { min-height: 525px; }
+  .diorama[data-labels="shown"] .diorama-view { inset: 117px 3px 204px; }
+  .diorama-rail {
+    inset-block: 8px 64px;
+    width: min(43%, 164px);
+    display: grid;
+    grid-template-rows: 56px 44px minmax(0, 1fr) repeat(3, 44px);
+    gap: 5px;
+  }
+  .diorama-rail[data-side="left"] { left: 6px; }
+  .diorama-rail[data-side="right"] { right: 6px; }
+  .diorama-rail .diorama-callout:nth-child(3) { grid-row: 4; }
+  .diorama-rail[data-side="left"] .diorama-callout:nth-child(3), .diorama-rail[data-side="right"] .diorama-callout:nth-child(4) { grid-row: 5; }
+  .diorama-rail[data-side="left"] .diorama-callout:nth-child(4), .diorama-rail[data-side="right"] .diorama-callout:nth-child(5) { grid-row: 6; }
+  .diorama-callout { padding: 3px 6px; gap: 4px; min-height: 0; }
+  .diorama-callout strong { font-size: 13px; }
+  .diorama-callout svg { width: 14px; height: 14px; }
 }

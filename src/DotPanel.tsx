@@ -2,12 +2,13 @@ import { useEffect } from 'react';
 import { Activity, BellRing, CalendarClock, Clock3, MessageCircle, Sunrise } from 'lucide-react';
 import { dotSummary } from '../shared/dot-monitor.mjs';
 import { baht, count, timestamp, type ShopState } from './model';
+import { workspaceNames } from './workspaces';
 import './dot-panel.css';
 
 export function DotEntry({ onOpen }: { onOpen: () => void }) {
   return <button className="dot-entry" onClick={onOpen} type="button">
     <span className="dot-entry-icon"><BellRing size={21} aria-hidden="true"/></span>
-    <span className="dot-entry-copy"><strong>แจ้งเตือน Dot</strong><span>ยอดซื้อพุ่งและสรุปงานเช้า 08.00 น.</span></span>
+    <span className="dot-entry-copy"><strong>{workspaceNames.dot}</strong><span>ยอดซื้อพุ่งและสรุปงานเช้า 08.00 น.</span></span>
     <span className="dot-entry-action">ดูรายละเอียด</span>
   </button>;
 }

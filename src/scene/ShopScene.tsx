@@ -1,10 +1,12 @@
-import { Component, createContext, Suspense, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Component, createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { ShopIcon } from '../ShopIcon'
 import { OrthographicCamera, Vector3, type Group } from 'three'
 import { Diorama, type LocationProps } from './Diorama'
-import { describeTarget, zoneLabels, workflowZones, type SceneTarget, type ShopSceneProps } from './scene-model'
+import { describeTarget, workflowZones, type SceneTarget, type SceneZone, type ShopSceneProps } from './scene-model'
+import { SceneCallouts } from './SceneCallouts'
+import { stations, workspaceNames } from '../workspaces'
 import './scene.css'
 
 export type { SceneZone, SceneVariant, ShopSceneProps } from './scene-model'
@@ -60,13 +62,12 @@ function Location({ target, at, mesh, shelf }: LocationProps) {
   )
 }
 
-function Marker({ target, shelf = false, controls, elements }: {
+function ShelfMarker({ target, controls, elements }: {
   target: SceneTarget
-  shelf?: boolean
   controls: LocationControls
   elements: Map<string, HTMLDivElement>
 }) {
-  const key = locationKey(target, shelf)
+  const key = locationKey(target, true)
   const { active, hovered, setHovered, isDragging, open, labels } = controls
   const selected = active && hovered === key
   const { title, detail } = describeTarget(target, labels)
@@ -86,8 +87,8 @@ function Marker({ target, shelf = false, controls, elements }: {
       <div className="diorama-marker">
         <button
           type="button"
-          className={shelf ? 'diorama-dot diorama-dot--shelf' : 'diorama-dot'}
-          aria-label={shelf ? `เปิดสินค้า ${title}` : title}
+          className="diorama-dot diorama-dot--shelf"
+          aria-label={`เปิดสินค้า ${title}`}
           aria-description={detail}
           aria-disabled={!active}
           tabIndex={active ? 0 : -1}
@@ -100,7 +101,6 @@ function Marker({ target, shelf = false, controls, elements }: {
           }}
         >
           <span aria-hidden="true" className="diorama-dot__lamp" />
-          {!shelf && <span className="diorama-dot__text">{target.zone === 'product' ? title : zoneLabels[target.zone].title}</span>}
         </button>
         {selected && <span className="diorama-hover" aria-hidden="true"><strong>{title}</strong>{detail}</span>}
       </div>
@@ -108,22 +108,79 @@ function Marker({ target, shelf = false, controls, elements }: {
   )
 }
 
-function ProjectMarkers({ anchors, elements }: {
+type Leader = {
+  group: SVGGElement
+  line: SVGPolylineElement
+  dot: SVGCircleElement
+  direction: number
+  x: number
+  y: number
+}
+
+function ProjectMarkers({ anchors, elements, view, selectedId, shown }: {
   anchors: Map<string, Group>
   elements: Map<string, HTMLDivElement>
+  view: RefObject<HTMLDivElement | null>
+  selectedId?: string
+  shown: boolean
 }) {
   const vector = useRef(new Vector3())
+  const layout = useRef({ left: 0, top: 0, leaders: new Map<string, Leader>() })
+  const invalidate = useThree(state => state.invalidate)
+  useLayoutEffect(() => {
+    const viewport = view.current
+    const frame = viewport?.parentElement
+    if (!viewport || !frame) return
+    const menus = Array.from(frame.querySelectorAll<HTMLButtonElement>('.diorama-callout'))
+    function measure() {
+      if (!viewport || !frame) return
+      const box = frame.getBoundingClientRect()
+      const canvas = viewport.getBoundingClientRect()
+      const leaders = new Map<string, Leader>()
+      for (const menu of menus) {
+        const zone = menu.dataset.zone
+        if (!shown || !zone) continue
+        const group = frame.querySelector<SVGGElement>(`.diorama-leaders g[data-zone="${zone}"]`)
+        const line = group?.querySelector('polyline')
+        const dot = group?.querySelector('circle')
+        if (!group || !line || !dot) continue
+        const direction = menu.parentElement?.dataset.side === 'left' ? 1 : -1
+        const rect = menu.getBoundingClientRect()
+        leaders.set(zone, { group, line, dot, direction,
+          x: (direction === 1 ? rect.right : rect.left) - box.left,
+          y: rect.top - box.top + rect.height / 2 })
+      }
+      layout.current = { left: canvas.left - box.left, top: canvas.top - box.top, leaders }
+      invalidate()
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    for (const element of [frame, viewport, ...menus]) observer.observe(element)
+    return () => observer.disconnect()
+  }, [view, shown, selectedId, invalidate])
   useFrame(({ camera, size }) => {
     camera.updateMatrixWorld()
+    const { left, top, leaders } = layout.current
+    const productKey = anchors.has(selectedId + ':shelf') ? selectedId + ':shelf' : selectedId + ':pedestal'
     for (const [key, anchor] of anchors) {
       const element = elements.get(key)
-      if (!element) continue
+      const leader = leaders.get(key === productKey ? 'product' : key)
+      if (!element && !leader) continue
       const point = anchor.getWorldPosition(vector.current).project(camera)
-      const x = Math.round((point.x * .5 + .5) * size.width)
-      const y = Math.round((.5 - point.y * .5) * size.height)
-      const transform = `translate3d(${x}px,${y}px,0) translate(-50%,-50%)`
-      if (element.style.transform !== transform) element.style.transform = transform
-      element.style.visibility = Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 ? 'visible' : 'hidden'
+      const x = Math.round(left + (point.x * .5 + .5) * size.width)
+      const y = Math.round(top + (.5 - point.y * .5) * size.height)
+      const visibility = Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 && Math.abs(point.z) <= 1 ? 'visible' : 'hidden'
+      if (element) {
+        element.style.transform = `translate3d(${x}px,${y}px,0) translate(-50%,-50%)`
+        element.style.visibility = visibility
+      }
+      if (leader) {
+        const bend = leader.x + leader.direction * Math.min(16, Math.abs(x - leader.x) / 3)
+        leader.group.style.visibility = visibility
+        leader.line.setAttribute('points', `${leader.x},${leader.y} ${bend},${leader.y} ${x},${y}`)
+        leader.dot.setAttribute('cx', String(x))
+        leader.dot.setAttribute('cy', String(y))
+      }
     }
   })
   return null
@@ -173,15 +230,16 @@ function Camera({ resetKey, clearHover, active }: { resetKey: number; clearHover
   )
 }
 
-function Fallback({ variants, selectedVariantId, labels, onOpen, active = true }: ShopSceneProps) {
+function Fallback({ variants, selectedVariantId, onOpen, active = true }: ShopSceneProps) {
   const selected = variants.find(variant => variant.id === selectedVariantId) ?? variants[0]
   return (
     <div className="diorama-fallback">
       <strong>มุมมองร้านแบบ 2D</strong>
       <p>อุปกรณ์นี้เปิดภาพ 3D ไม่ได้ เลือกจุดทำงานด้านล่างได้เลย</p>
       <div className="diorama-fallback__zones">
+        {selected && <button type="button" disabled={!active} onClick={() => onOpen('product', selected.id)}>{workspaceNames[stations.product.page]} · {stations.product.name}</button>}
         {workflowZones.map(zone => (
-          <button key={zone} type="button" aria-disabled={!active} tabIndex={active ? 0 : -1} onClick={() => { if (active) onOpen(zone) }}>{labels?.[zone]?.title ?? zoneLabels[zone].title}</button>
+          <button key={zone} type="button" disabled={!active} onClick={() => onOpen(zone)}>{workspaceNames[stations[zone].page]} · {stations[zone].name}</button>
         ))}
       </div>
       <div className="diorama-fallback__zones">
@@ -208,10 +266,11 @@ class SceneBoundary extends Component<{ fallback: ReactNode; children: ReactNode
 export default function ShopScene(props: ShopSceneProps) {
   const { variants, selectedVariantId, onOpen, labels, resetKey = 0, active = true } = props
   const selected = variants.find(variant => variant.id === selectedVariantId) ?? variants[0]
-  const [showLabels, setShowLabels] = useState(false)
+  const [showLabels, setShowLabels] = useState(true)
   const [hovered, setHovered] = useState<string | null>(null)
   const anchors = useRef(new Map<string, Group>())
   const elements = useRef(new Map<string, HTMLDivElement>())
+  const view = useRef<HTMLDivElement>(null)
   const pointer = useRef<{ x: number; y: number; id: number } | null>(null)
   const drag = useRef(false)
   const clearHover = useCallback(() => setHovered(null), [])
@@ -226,6 +285,7 @@ export default function ShopScene(props: ShopSceneProps) {
   }
 
   const controls = { labels, active, hovered, setHovered, open, anchors: anchors.current, isDragging: () => drag.current }
+  const hoveredZone = hovered && (hovered.endsWith(':pedestal') || hovered.endsWith(':shelf')) ? 'product' : hovered as SceneZone | null
   const fallback = <Fallback {...props} />
   return (
     <div
@@ -260,7 +320,7 @@ export default function ShopScene(props: ShopSceneProps) {
       }}
       onKeyDownCapture={() => { drag.current = false }}
     >
-      <SceneBoundary fallback={fallback}>
+      <div className="diorama-view" ref={view}><SceneBoundary fallback={fallback}>
         <Suspense fallback={<div className="diorama-loading">กำลังเปิดร้าน 3D…</div>}>
           <Canvas
             orthographic
@@ -297,20 +357,21 @@ export default function ShopScene(props: ShopSceneProps) {
               <Diorama variants={variants} selected={selected} shopName={props.shopName} location={Location} />
             </LocationContext.Provider>
             <Camera resetKey={resetKey} clearHover={clearHover} active={active} />
-            <ProjectMarkers anchors={anchors.current} elements={elements.current} />
+            <ProjectMarkers anchors={anchors.current} elements={elements.current} view={view} selectedId={selected?.id} shown={showLabels} />
           </Canvas>
         </Suspense>
-      </SceneBoundary>
+      </SceneBoundary></div>
+      <SceneCallouts selected={selected} labels={labels} active={active} shown={showLabels} hovered={hoveredZone}
+        onHover={zone => setHovered(zone === 'product' && selected ? locationKey({zone, variant: selected}) : zone)}
+        onOpen={target => { if (active && !drag.current) open(target) }} />
       <button type="button" className="diorama-pins" aria-pressed={showLabels} disabled={!active}
         onClick={() => setShowLabels(value => !value)}>
-        <ShopIcon name="pin" size={17} />{showLabels ? 'ซ่อนจุดทำงาน' : 'แสดงจุดทำงาน'}
+        <ShopIcon name="pin" size={17} />{showLabels ? 'ซ่อนป้ายเมนู' : 'แสดงป้ายเมนู'}
       </button>
       <div className="diorama-markers">
         {variants.slice(0, 13).map(variant => (
-          <Marker key={variant.id} target={{ zone: 'product', variant }} controls={controls} elements={elements.current} shelf />
+          <ShelfMarker key={variant.id} target={{ zone: 'product', variant }} controls={controls} elements={elements.current} />
         ))}
-        {selected && <Marker key={`pedestal:${selected.id}`} target={{ zone: 'product', variant: selected }} controls={controls} elements={elements.current} />}
-        {workflowZones.map(zone => <Marker key={zone} target={{ zone }} controls={controls} elements={elements.current} />)}
       </div>
     </div>
   )

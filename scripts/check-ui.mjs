@@ -20,14 +20,14 @@ async function navigate(name) {
 }
 try {
   await page.goto(origin);
-  await expect(page.getByRole('heading', { name: 'ภาพรวมร้าน' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'ภาพรวมร้านค้า', exact: true })).toBeVisible();
   await navigate('จัดการร้าน');
   await page.getByRole('button', { name: 'เริ่มรอบทดลองใหม่' }).click();
   await page.getByRole('button', { name: 'เริ่มรอบใหม่' }).click();
   await expect(page.getByText('฿221,056', { exact: true })).toBeVisible();
   await expect(page.getByText('600', { exact: true })).toBeVisible();
   await page.locator('canvas').waitFor({ timeout: 15000 });
-  await expect(page.locator('.diorama-marker').first()).toBeVisible();
+  await expect(page.locator('.diorama').getByRole('button', { name: /การเงิน/ })).toBeVisible();
   await page.screenshot({ path: directory + '/overview-1440.png' });
 
   const robotButton = page.getByRole('button', { name: 'ROBOT · เหลือขาย 407 ชิ้น', exact: true });
@@ -47,6 +47,7 @@ try {
   await page.getByRole('button', { name: /ตอบลูกค้าเรื่อง Sonic/ }).click();
   await page.getByRole('button', { name: 'วิเคราะห์เคส' }).click();
   await expect(page.getByText('ข้อเสนอจากระบบจำลอง')).toBeVisible();
+  await expect(page.locator('.desk-pause')).toBeEnabled();
   await page.getByRole('button', { name: 'ส่งข้อความนี้' }).first().click();
   await expect(page.getByRole('heading', { name: 'งานแบบนี้ครั้งหน้าให้ทำเองตามกฎ หรือถามทุกครั้ง?' })).toBeVisible();
   await page.keyboard.press('Escape');
@@ -67,9 +68,13 @@ try {
   await page.getByRole('button', { name: /ROBOT × 2/ }).click();
   await page.getByRole('button', { name: 'เตรียมใบปะหน้า' }).click();
   await expect(page.getByText(/SIM-LABEL-/)).toBeVisible();
+  const savedAction = page.getByRole('status').filter({ hasText: 'บันทึกในร้านจำลองแล้ว' });
+  await expect(savedAction).toBeVisible();
   await page.getByRole('button', { name: 'เริ่มแพ็ก' }).click();
+  await expect(savedAction).toBeVisible();
   await page.getByRole('button', { name: 'ยืนยันว่าแพ็กแล้ว' }).click();
   await expect(page.getByText('38 พัสดุ · 38 ชิ้น')).toBeVisible();
+  await expect(savedAction).toBeVisible();
   await page.getByRole('button', { name: 'จำลองขนส่งรับ' }).click();
   await expect(page.getByText(/เลขติดตามพัสดุ SIM-/)).toBeVisible();
   await navigate('วัสดุแพ็ก');
@@ -80,7 +85,7 @@ try {
     await page.setViewportSize({ width, height: 847 });
     await navigate('ร้าน 3D');
     await page.getByRole('button', { name: '2D', exact: true }).click();
-    await page.getByRole('button', { name: /สินค้าบนชั้น/ }).press('Enter');
+    await page.locator('.flat-grid').getByRole('button', { name: /สต็อกกลาง/ }).press('Enter');
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
     await page.screenshot({ path: directory + '/mobile-' + width + '.png' });
