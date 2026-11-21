@@ -62,7 +62,7 @@
 .ready-sources ul { margin: 3px 0; padding-left: 17px; }
 .ready-sources a { color: #423276; text-decoration: underline; }
 .ready-mic-controls { display: flex; justify-content: center; padding: 8px 10px; border-top: 1px solid var(--ready-line); }
-.ready-mic-controls > button { min-height: 44px; width: auto; padding: 0 14px; gap: 7px; }
+.ready-mic-controls > button { display: inline-flex; align-items: center; min-height: 44px; width: auto; padding: 0 14px; gap: 7px; }
 .ready-error { background: #f9e8eb; color: #842d3e; font-size: 12px; padding: 6px 10px; }
 .ready-audio { color: #433372; text-decoration: underline; font-size: 12px; background: transparent; border: none; }
 .ready-audio { display: flex; align-items: center; gap: 6px; padding: 7px 10px; text-align: left; }
