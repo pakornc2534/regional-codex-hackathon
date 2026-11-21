@@ -304,7 +304,8 @@ export default function App() {
     </div>
     {spotlight && <div className="showpiece">
       <button className="change-piece" onClick={() => setLayer({kind:'selector'})}><Tags size={15}/> เลือกสินค้า <ChevronDown size={14}/></button>
-      <h3>{spotlight.productName}</h3>
+      <h3>{spotlight.productName.split(/\s+/).map((word, index) =>
+        <span key={index}>{index > 0 && ' '}<span className="piece-word">{word}</span></span>)}</h3>
       <p>{[spotlight.name, spotlight.sellerSku].filter(Boolean).join(' · ')}</p>
       <div className="piece-price">{baht(spotlight.price)}<span>ต่อชิ้น</span></div>
       <button className="piece-plan" onClick={() => setMode('ads')}><Calculator size={17}/> ลองแผนยิงแอด</button>

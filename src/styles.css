@@ -134,7 +134,8 @@ small { font-size: 11px; line-height: 1.4; }
 .change-piece,.piece-plan { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 7px; font-size: 12px; }
 .change-piece { padding: 3px 7px; color: #e8d4a4; border: 1px solid #60776b; background: transparent; }
 .change-piece:hover { background: #25483b; }
-.showpiece h3 { color: #fff6dd; margin: 15px 0 2px; font-weight: 650; letter-spacing: -.04em; font-size: clamp(24px,2.15vw,37px); line-height: 1.36; text-wrap: pretty; }
+.showpiece h3 { color: #fff6dd; margin: 15px 0 2px; font-weight: 650; letter-spacing: -.04em; font-size: clamp(24px,2.15vw,37px); line-height: 1.36; text-wrap: wrap; }
+.piece-word { display: inline-block; max-width: 100%; }
 .showpiece p { color: #c7d4c7; font-size: 12px; }
 .piece-price { display: flex; align-items: baseline; gap: 6px; font-size: 26px; letter-spacing: -.05em; font-variant-numeric: tabular-nums; font-weight: 560; margin: 9px 0 14px; }
 .piece-price span { color: #c3d0be; font-size: 11px; font-weight: 400; letter-spacing: 0; }
@@ -318,11 +319,11 @@ td small { display: block; color: var(--muted); }
   .showpiece { display: grid; grid-template-columns: minmax(0,1fr) auto; grid-template-areas: "name choose" "sku price" "action action"; align-items: center; justify-content: initial; column-gap: 6px; padding: 9px 13px 12px; border-top: 1px solid #415e51; }
   .showpiece h3 { grid-area: name; font-size: 21px; margin: 0; text-align: left; text-wrap: initial; }
   .showpiece p { grid-area: sku; font-size: 11px; }
-  .change-piece { grid-area: choose; justify-self: end; font-size: 10px; }
+  .change-piece { grid-area: choose; justify-self: end; font-size: 11px; min-height: 32px; }
   .change-piece svg { width: 12px; height: 12px; }
   .piece-price { grid-area: price; justify-self: end; margin: 1px 0; font-size: 19px; }
   .piece-price span { font-size: 10px; }
-  .piece-plan { grid-area: action; justify-self: start; margin-top: 5px; font-size: 12px; padding: 5px 9px; }
+  .piece-plan { grid-area: action; justify-self: start; margin-top: 5px; font-size: 12px; padding: 7px 10px; }
   .scene-caption { padding: 7px 9px; font-size: 10px; gap: 5px; }
   .scene-caption button { gap: 2px; font-size: 10px; padding: 4px; }
   .scene-caption button svg { width: 13px; }

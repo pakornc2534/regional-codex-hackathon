@@ -28,8 +28,8 @@ The gallery redesign was also checked at 1440, 390 and 360 pixels. The product f
 
 ![Desktop shop](screenshots/shop-3d.png)
 
-The following screenshot records the hosted assistant test before the interface redesign.
+The published dashboard displayed the earlier assistant answer in the shared chat. The live check also opened the guide, the advertising plan, and the case list.
 
-![Hosted conversation during the earlier acceptance test](screenshots/hosted-demo.png)
+![Conversation on the redesigned public demo](screenshots/hosted-demo.png)
 
 Additional checks: [domain scenarios](domain-verification.md). Run the destructive browser test only on a disposable local data directory using SHOP_UI_TEST_URL and scripts/check-ui.mjs. For the read-only layout test use TEST_ORIGIN and scripts/check-plan-layout.mjs.
