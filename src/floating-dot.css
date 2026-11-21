@@ -50,8 +50,14 @@
 @media (max-width: 949px) {
   .floating-dot { --dot-diameter: 56px; right: max(12px, env(safe-area-inset-right)); }
   .floating-dot-figure .dot-robot { transform: scale(.34); }
-  .app-shell .floating-dot { bottom: calc(var(--shop-tabs-height, 62px) + 12px); }
-  .app-shell:has(.floating-dot) .workspace { padding-bottom: calc(var(--shop-tabs-height, 62px) + 82px); }
+  .app-shell .floating-dot { right: max(8px, env(safe-area-inset-right));
+    bottom: max(calc(5px + env(safe-area-inset-bottom)), calc((var(--shop-tabs-height, 66px) - var(--dot-diameter) + env(safe-area-inset-bottom)) / 2)); }
+  .app-shell .mobile-tabs { right: calc(73px + env(safe-area-inset-right)); min-height: calc(66px + env(safe-area-inset-bottom));
+    grid-template-columns: repeat(4, minmax(0, 1fr)); padding-inline: 4px; }
+  .app-shell .mobile-tabs::after { content: ''; position: absolute; left: 100%; top: -1px; bottom: 0;
+    width: calc(73px + env(safe-area-inset-right)); border-top: 1px solid #d9dbcf; background: #fffdf6; pointer-events: none; }
+  .app-shell .mobile-tabs button { min-width: 0; }
+  .app-shell:has(.floating-dot) .workspace { padding-bottom: calc(var(--shop-tabs-height, 66px) + 20px); }
   .app-shell:has(.floating-dot) .diorama-pins { left: 10px; right: auto; }
 }
 .app-shell:has(.scene-fullscreen) .floating-dot { bottom: max(17px, env(safe-area-inset-bottom)); }
