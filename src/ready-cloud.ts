@@ -46,13 +46,11 @@ export function createCloudCall(options: CloudOptions) {
   const sender = peer.addTransceiver('audio', { direction: 'sendrecv' }).sender;
   const events = peer.createDataChannel('oai-events');
   const questions: { id: string; text: string }[] = [];
-  const queued: string[] = [];
   const partials = new Map<string, string>();
   let session: string | undefined;
   let mic: MediaStreamTrack | undefined;
   let wanted = false;
   let micGeneration = 0;
-  let capturing = false;
   let responding = false;
   let playing = false;
   let closed = false;
@@ -97,23 +95,6 @@ export function createCloudCall(options: CloudOptions) {
     gate.agentBusy(true);
     send({ type: 'response.create' });
   }
-  function flushText() {
-    if (closed || capturing || responding || playing || events.readyState !== 'open') return;
-    const text = queued.shift();
-    if (!text) return;
-    pendingTranscription?.finish();
-    pendingTranscription = undefined;
-    const id = crypto.randomUUID().replaceAll('-', '').slice(0, 24);
-    send({ type: 'conversation.item.create', item: { id, type: 'message', role: 'user', content: [{ type: 'input_text', text }] } });
-    remember(id, text);
-    requestResponse();
-  }
-  function sendText(text: string) {
-    if (closed || events.readyState !== 'open') throw Error('สายสิ้นสุดแล้ว');
-    queued.push(text);
-    flushText();
-  }
-
   async function setMic(enable: boolean) {
     wanted = enable;
     const generation = ++micGeneration;
@@ -167,7 +148,7 @@ export function createCloudCall(options: CloudOptions) {
         // Input transcription is asynchronous and sometimes arrives after the model's tool call.
         const timer = window.setTimeout(speech.finish, 7000);
         try { await speech.ready; } finally { window.clearTimeout(timer); }
-        if (!questions.some(row => row.id === speech.id)) throw Error('ยังได้รับข้อความถอดเสียงไม่ครบ กรุณาถามซ้ำหรือพิมพ์คำถาม');
+        if (!questions.some(row => row.id === speech.id)) throw Error('ยังได้รับข้อความถอดเสียงไม่ครบ กรุณาพูดคำถามอีกครั้ง');
       }
       const response = await fetch('/api/ready/tool', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: options.signal,
@@ -201,16 +182,12 @@ export function createCloudCall(options: CloudOptions) {
     responding = false;
     gate.agentBusy(playing);
     if (response.status === 'failed') options.notice('ผู้จัดการตอบไม่สำเร็จ ลองส่งคำถามอีกครั้ง');
-    flushText();
   }
 
   function receive(raw: unknown) {
     const { type } = eventHeader.parse(raw);
     switch (type) {
-      case 'input_audio_buffer.speech_started': capturing = true; break;
-      case 'input_audio_buffer.cleared': capturing = false; flushText(); break;
       case 'input_audio_buffer.committed': {
-        capturing = false;
         const { item_id } = item.parse(raw);
         expectTranscript(item_id);
         options.record({ id: item_id, kind: 'chat', from: 'owner', text: 'กำลังถอดเสียง…', final: false });
@@ -235,7 +212,7 @@ export function createCloudCall(options: CloudOptions) {
       case 'response.created': responding = true; gate.agentBusy(true); break;
       case 'output_audio_buffer.started': playing = true; gate.agentBusy(true); break;
       case 'output_audio_buffer.cleared':
-      case 'output_audio_buffer.stopped': playing = false; gate.agentBusy(responding); flushText(); break;
+      case 'output_audio_buffer.stopped': playing = false; gate.agentBusy(responding); break;
       case 'response.output_audio_transcript.delta':
       case 'response.output_text.delta': {
         const { item_id, delta } = deltaPart.parse(raw);
@@ -282,5 +259,5 @@ export function createCloudCall(options: CloudOptions) {
     await peer.setRemoteDescription({ type: 'answer', sdp: data.sdp });
   }
 
-  return { connect, setMic, sendText, playAudio, close, notePlayback: () => gate.audio() };
+  return { connect, setMic, playAudio, close, notePlayback: () => gate.audio() };
 }
