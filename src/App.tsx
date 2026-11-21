@@ -368,6 +368,7 @@ export default function App() {
       {state.hosted?.publicDemo && <div className="public-notice"><span aria-hidden="true"><PanelsTopLeft size={16}/></span><p>เดโมสาธารณะ ทุกคนเห็นและแก้ข้อมูลร้านจำลองร่วมกัน กรุณาอย่ากรอกข้อมูลส่วนตัว</p></div>}
       {(state.hosted?.stale || loadError) && <Notice error>{loadError || 'ขาดการเชื่อมต่อกับร้าน กำลังแสดงข้อมูลล่าสุด'}</Notice>}
       {!layer && commandError && <Notice error>{commandError}</Notice>}{!layer && feedback && <p className="feedback" role="status">{feedback}</p>}
+      {page === 'overview' && <a className="buyer-entry" href="/?customer"><ShopIcon name="inbox" size={20}/> ทดลองถามสินค้าในแชทลูกค้า</a>}
       <div className="workspace-content">{content}</div>
     </main>
     <div className="mobile-tabs" role="group" aria-label="ทางลัด">

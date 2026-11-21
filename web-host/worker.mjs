@@ -1,6 +1,6 @@
 import {decode,encode,bounded} from './codec.mjs'
 
-const endpoints = new Set(['chat','sim/command','sim/analyze','sim/growth','sim/impact','memories','reconnect','chat/cancel'])
+const endpoints = new Set(['customer/ask','customer/status','chat','sim/command','sim/analyze','sim/growth','sim/impact','memories','reconnect','chat/cancel'])
 const json = (value,status = 200) => Response.json(value,{status,headers:{'cache-control':'no-store'}})
 const getJSON = async (bucket,key) => (await bucket.get(key))?.json()
 const wait = ms => new Promise(resolve => setTimeout(resolve,ms))

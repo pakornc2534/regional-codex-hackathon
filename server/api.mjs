@@ -6,6 +6,7 @@ import {tickShop} from './demo-clock.mjs'
 import {openShop} from './persistence.mjs'
 import * as domain from './domain/index.mjs'
 import {chooseOption} from './approved-actions.mjs'
+import {customerChat} from './customer-chat.mjs'
 import {manager} from './manager-controller.mjs'
 const port=Number(process.env.PORT||4310), root=resolve('dist/client')
 const shop=openShop(resolve(process.env.DATA_DIR||'.data')),events=new Set(),boot=randomUUID()
@@ -15,7 +16,7 @@ if(process.env.DEMO_CLOCK!=='manual'){
   tickShop(shop)
   setInterval(()=>{if(tickShop(shop))changed()},60000).unref()
 }
-const agent=manager(shop,changed)
+const agent=manager(shop,changed), customer=customerChat(shop)
 const allowed=new Set([port,...(port===4311?[4310]:[])].flatMap(p=>['localhost:'+p,'127.0.0.1:'+p]))
 function reject(status,message){throw Object.assign(Error(message),{status})}
 const server=http.createServer(async(req,res)=>{
@@ -53,6 +54,8 @@ const server=http.createServer(async(req,res)=>{
         if(b.type==='choose_option'){const result=chooseOption(shop,b);changed();return json(result)}
         const out=domain.applyCommand(shop.world,b);shop.saveWorld(out.world);if(shop.world.managerPaused)agent.stop();changed();return json(out.receipt)
       }
+      case '/api/customer/ask':return json(customer.submit(b))
+      case '/api/customer/status':return json(customer.status(b.id))
       case '/api/chat':return json(agent.enqueue(b),202)
       case '/api/chat/cancel':agent.cancel(b.jobId);return json({ok:true})
       case '/api/memories':{if(typeof b.text!=='string'||!b.text.trim()||b.text.length>2000)reject(400,'กรอกความจำไม่เกิน 2,000 ตัวอักษร');const row={id:randomUUID(),text:b.text.trim(),at:shop.world.clock};shop.editOwner(o=>o.memories.push(row));changed();return json(row)}
@@ -62,4 +65,4 @@ const server=http.createServer(async(req,res)=>{
   }catch(e){if(!res.headersSent)json({error:e.message},e.status||400);else res.end()}
 })
 server.listen(port,'127.0.0.1',()=>{console.log('ร้านเรา http://127.0.0.1:'+port);agent.reconnect().catch(()=>changed())})
-for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{agent.close();for(const c of events)c.end();server.close();setTimeout(()=>process.exit(),250).unref()})
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>{customer.close();agent.close();for(const c of events)c.end();server.close();setTimeout(()=>process.exit(),250).unref()})

@@ -1,0 +1,15 @@
+.buyer-chat { width:min(720px,100%); margin:auto; padding:clamp(16px,4vw,36px); }
+.buyer-chat header { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding-bottom:14px; border-bottom:2px solid var(--ink); }
+.buyer-chat header a { margin-left:auto; font-size:14px; padding:10px 0; }
+.buyer-chat > p { color:var(--muted); font-size:14px; margin:14px 0; }
+.buyer-thread { height:clamp(200px,49dvh,490px); overflow:auto; padding:14px; background:var(--white); border:1px solid var(--line); display:flex; flex-direction:column; gap:12px; }
+.buyer-examples { display:flex; flex-wrap:wrap; gap:8px; }
+.buyer-examples button { min-height:44px; padding:7px 10px; border:1px solid var(--line); background:var(--sidebar); border-radius:4px; font-size:14px; }
+.buyer-line { max-width:95%; padding:9px 12px; background:var(--sidebar); border-left:3px solid var(--accent); overflow-wrap:anywhere; }
+.buyer-line strong { font-size:13px; color:var(--muted); }
+.buyer-line p { white-space:pre-wrap; }
+.buyer-line.buyer { align-self:flex-end; background:var(--soft); border-left:0; }
+.buyer-chat form { display:grid; gap:7px; margin-top:14px; }
+.buyer-chat form textarea { font-size:16px; }
+.buyer-chat form button { justify-self:end; min-height:44px; padding-inline:18px; font-size:14px; }
+.buyer-entry { display:inline-flex; align-items:center; gap:6px; min-height:44px; margin-bottom:10px; font-size:14px; }

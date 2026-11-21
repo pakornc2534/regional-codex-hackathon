@@ -21,7 +21,7 @@ for (const sig of ['SIGINT','SIGTERM']) process.on(sig,() => {stopped = true;chi
 child.on('exit',code => {stopped = true;process.exitCode = code || 0})
 
 const journal = join(dir,'delivery.json')
-const endpoints = new Set(['chat','sim/command','sim/analyze','sim/growth','sim/impact','memories','reconnect','chat/cancel'])
+const endpoints = new Set(['customer/ask','customer/status','chat','sim/command','sim/analyze','sim/growth','sim/impact','memories','reconnect','chat/cancel'])
 const uncertain = {status:409,body:{error:'คำสั่งอาจดำเนินการแล้ว โปรดตรวจสอบสถานะก่อนลองใหม่',status:'uncertain'}}
 const wait = ms => new Promise(resolve => setTimeout(resolve,ms))
 
