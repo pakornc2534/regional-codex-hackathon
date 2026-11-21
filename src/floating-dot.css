@@ -52,6 +52,7 @@
   .floating-dot-figure .dot-robot { transform: scale(.34); }
   .app-shell .floating-dot { bottom: calc(var(--shop-tabs-height, 62px) + 12px); }
   .app-shell:has(.floating-dot) .workspace { padding-bottom: calc(var(--shop-tabs-height, 62px) + 82px); }
+  .app-shell:has(.floating-dot) .diorama-pins { left: 10px; right: auto; }
 }
 .app-shell:has(.scene-fullscreen) .floating-dot { bottom: max(17px, env(safe-area-inset-bottom)); }
 .app-shell:has(.floating-dot) .scene-fullscreen .scene-caption { min-height: 82px; padding-right: 84px; }
