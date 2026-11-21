@@ -81,7 +81,7 @@ export function liveManagerSessions(shop, env = process.env, fetchAvatar = fetch
       if (!available() || !toolAuthorized(headers.authorization,env.LIVE_MANAGER_TOOL_SECRET)) error(403,'ไม่ได้รับอนุญาตให้อ่านข้อมูลร้าน')
       if (!current || headers['x-live-manager-room'] !== current.room || current.expiresAt <= Date.now()
         || current.runId !== shop.world.runId || shop.world.managerPaused) error(409,'สายหมดอายุหรือรอบร้านเปลี่ยนแล้ว')
-      return readLiveManagerTool(shop.world,body)
+      return readLiveManagerTool(shop.world,body,shop.owner)
     },
     async end({room,identity}) {
       if (current && current.room === room && current.identity === identity) {

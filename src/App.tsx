@@ -388,6 +388,7 @@ export default function App() {
   const codexDesk = <Manager onOpenCase={openCase} state={state} room={room} variant={variants.find(item => item.id === room.variantId)} openCase={roomCaseData ? () => openCase(roomCaseData.id) : undefined} draft={draft} setDraft={setDraft} send={send} cancel={jobId => void invoke('/api/chat/cancel', {jobId,runId:state.runId})}
     reconnect={() => void invoke('/api/reconnect', {}, 'ตรวจการเชื่อมต่อแล้ว')} action={action} busy={unavailable}/>;
 
+  const showsSelectedProduct = page === 'overview' || page === 'plan' || page === 'scene';
   return <div className={liveManager ? 'app-shell with-live-manager' : 'app-shell'}>
     <header className="mobile-bar"><button className="icon-btn" aria-label="เปิดเมนูร้าน" onClick={() => setMobile(mobile === 'menu' ? undefined : 'menu')}><Menu size={21}/></button><button className="mobile-brand" onClick={() => go('overview')}><ShopIcon name="storemark" size={29}/> ร้านเรา</button>{!liveManager && <button className="icon-btn" aria-label="เปิดผู้จัดการ AI" onClick={() => setMobile(mobile === 'manager' ? undefined : 'manager')}><ShopIcon name="manager" size={25}/></button>}</header>
     {mobile && <button className="mobile-scrim" aria-label="ปิดแผง" onClick={() => setMobile(undefined)}/>}
@@ -445,7 +446,12 @@ export default function App() {
       onDraft={next => planDrafts.current.set(`${selected.id}:${mode}`,next)}
       onClose={() => setMode(undefined)} onSubmit={submitPlan}/>}
     {!selected && page === 'plan' && <Empty>ร้านนี้ยังไม่มีสินค้าให้ประเมิน</Empty>}
-    {liveManager && <ReadyManager shopName={state.shop.name} hidden={Boolean(mobile || layer || mode || fullscreen)} onOpenTextManager={() => setLayer({ kind: 'codex' })}/>}
+    {liveManager && <ReadyManager shopName={state.shop.name} shopView={{
+      page,
+      selectedVariantId: showsSelectedProduct ? selected?.id : undefined,
+      plan: showsSelectedProduct && evaluation.result && !evaluation.loading && !evaluation.stale ? inputs : undefined,
+      conversationId: page === 'inbox' ? (state.conversations.find(room => room.id === inboxId) ?? state.conversations[0])?.id : undefined,
+    }} hidden={Boolean(mobile || layer || mode || fullscreen)} onOpenTextManager={() => setLayer({ kind: 'codex' })}/>}
   </div>;
 }
 function isZone(key: string): key is SceneZone { return Object.hasOwn(stations, key); }

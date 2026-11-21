@@ -1,9 +1,11 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { History, Mic, MicOff, Minus, PhoneOff, Send, Volume2 } from 'lucide-react';
 import type { RemoteParticipant, RemoteTrack, Room } from 'livekit-client';
 import { z } from 'zod';
 import { createReadyMicGate } from './ready-mic-gate';
 import { createBrowserAvatar, warmAvatarAudio, type BrowserAvatarStage } from './ready-avatar';
+import type { Page } from './workspaces';
+import type { PlanInputs } from './model';
 import './ready-manager.css';
 
 const sessionSchema = z.object({
@@ -69,7 +71,11 @@ function releaseCall(call: ActiveCall | undefined) {
   }
 }
 
-export function ReadyManager({ shopName, hidden = false, onOpenTextManager }: { shopName: string; hidden?: boolean; onOpenTextManager: () => void }) {
+type ShopView = { page: Page; selectedVariantId?: string; plan?: PlanInputs; conversationId?: string };
+
+export function ReadyManager({ shopName, shopView, hidden = false, onOpenTextManager }: {
+  shopName: string; shopView: ShopView; hidden?: boolean; onOpenTextManager: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [call, setCall] = useState<Call>({ phase: 'idle' });
   const [messages, setMessages] = useState<Message[]>([]);
@@ -91,6 +97,8 @@ export function ReadyManager({ shopName, hidden = false, onOpenTextManager }: { 
   const playback = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const panelId = useId();
+  const view = useRef(shopView);
+  useLayoutEffect(() => { view.current = shopView; }, [shopView]);
 
   function stopCall(error?: string) {
     const current = active.current;
@@ -226,6 +234,12 @@ export function ReadyManager({ shopName, hidden = false, onOpenTextManager }: { 
       const isCurrent = () => active.current === current;
       const isAgent = (participant: RemoteParticipant) =>
         session.assistantIdentity ? participant.identity === session.assistantIdentity : participant.kind === ParticipantKind.AGENT;
+
+      room.registerRpcMethod('raan.current-view', async ({ callerIdentity }) => {
+        const caller = room.remoteParticipants.get(callerIdentity);
+        if (!isCurrent() || !caller || !isAgent(caller)) throw Error('ห้องสนทนาไม่ตรงกัน');
+        return JSON.stringify(view.current);
+      });
 
       const fallbackAudio = new Map<RemoteTrack, HTMLMediaElement | undefined>();
       let avatarOwnsAudio = false;
