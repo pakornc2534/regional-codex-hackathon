@@ -24,6 +24,7 @@ function fixture(t) {
   const env = { BUCKET: bucket, OPENAI_API_KEY: 'private-openai', ANAM_API_KEY: 'private-anam', ANAM_AVATAR_ID: 'avatar' }
   const issuances = [], hangups = [], avatars = []
   t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(options.redirect, 'manual', 'Workers must reject redirects without forwarding provider credentials')
     if (url.endsWith('/hangup')) {
       hangups.push(url)
       return new Response(null, { status: 200 })

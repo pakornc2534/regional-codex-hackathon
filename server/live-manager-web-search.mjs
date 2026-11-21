@@ -217,7 +217,7 @@ export async function searchPublicMarket({ subjects, focus = 'overview' }, { que
         store: false
       }),
       signal: AbortSignal.any([signal, AbortSignal.timeout(45000)].filter(Boolean)),
-      redirect: 'error'
+      redirect: 'manual'
     })
     if (!response.ok) return { error: 'ค้นเว็บสดไม่สำเร็จในขณะนี้' }
     const found = sourcedResult(await response.json())

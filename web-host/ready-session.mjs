@@ -56,7 +56,7 @@ export async function consumeReadySearch(env, session) {
 async function hangup(env, callId) {
   const res = await fetch(`${callsUrl}/${callId}/hangup`, {
     method: 'POST', headers: { authorization: 'Bearer ' + env.OPENAI_API_KEY },
-    redirect: 'error', signal: AbortSignal.timeout(8_000),
+    redirect: 'manual', signal: AbortSignal.timeout(8_000),
   })
   if (!res.ok && res.status !== 404 && res.status !== 410) stop(502, 'กำลังปิดสายเดิม กรุณาลองอีกครั้ง')
 }
@@ -124,7 +124,7 @@ async function start(env, sdp) {
   try {
     const res = await fetch(callsUrl, {
       method: 'POST', headers: { authorization: 'Bearer ' + env.OPENAI_API_KEY, accept: 'application/sdp' },
-      body: form, redirect: 'error', signal: AbortSignal.timeout(22_000),
+      body: form, redirect: 'manual', signal: AbortSignal.timeout(22_000),
     })
     if (!res.ok) stop(res.status === 429 ? 429 : 502, res.status === 429 ? 'บริการเสียงถึงขีดจำกัดชั่วคราว กรุณาลองใหม่ภายหลัง' : 'บริการเสียงยังเปิดสายไม่ได้ กรุณาลองใหม่')
     callId = callIdFrom(res)
@@ -152,7 +152,7 @@ async function avatar(env, session) {
     body: JSON.stringify({ personaConfig: {
       name: 'พร้อม', avatarId: env.ANAM_AVATAR_ID, avatarModel: 'cara-4', enableAudioPassthrough: true,
       maxSessionLengthSeconds: Math.max(1, Math.ceil((lease.expiresAt - Date.now()) / 1000)),
-    } }), redirect: 'error', signal: AbortSignal.timeout(12_000),
+    } }), redirect: 'manual', signal: AbortSignal.timeout(12_000),
   })
   if (!res.ok) stop(502, 'Anam ยังเปิดวิดีโอให้ไม่ได้')
   const result = await res.json()

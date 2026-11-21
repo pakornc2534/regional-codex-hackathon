@@ -296,6 +296,7 @@ async function readyWithOfflineShop(t) {
   const searches = []
   let registeredTools
   t.mock.method(globalThis, 'fetch', async (url, request) => {
+    assert.equal(request.redirect, 'manual', 'Workers must reject redirects without forwarding provider credentials')
     if (url === 'https://api.openai.com/v1/realtime/calls') {
       registeredTools = JSON.parse(request.body.get('session')).tools
       return new Response('v=0\r\n', {headers:{location:'/v1/realtime/calls/rtc_ready_test'}})
