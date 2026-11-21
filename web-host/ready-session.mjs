@@ -89,13 +89,18 @@ async function reserve(env, runId) {
   return next
 }
 
-function sessionConfig(env) {
+function sessionConfig(env, shop) {
+  const names = (shop.products ?? []).slice(0, 40).map(product => String(product.name ?? '').slice(0, 70)).filter(Boolean)
+  const transcription = {
+    model: 'gpt-4o-mini-transcribe', language: 'th',
+    prompt: 'บทสนทนาภาษาไทยเรื่องราคา สต็อก และคู่แข่ง ชื่อสินค้าในแค็ตตาล็อกอาจออกเสียงแบบไทย ให้สะกดชื่อตามที่ได้ยิน เช่น ' + names.join(' / ').slice(0, 900)
+  }
   return {
     type: 'realtime', model: env.OPENAI_REALTIME_MODEL || 'gpt-realtime-2.1',
     instructions: readyInstructions + '\nกำลังสนทนาบนเดโมออนไลน์ เมื่อข้อมูลร้านเป็นสำเนาที่บันทึกไว้ ให้บอกเวลาบันทึกที่เครื่องมือส่งมาหากเกี่ยวกับคำถาม ใช้ผลค้นเว็บเฉพาะเพื่ออ้างอิงข้อมูลภายนอก',
     output_modalities: ['audio'], max_output_tokens: 1200,
     audio: {
-      input: { transcription: { model: 'gpt-4o-mini-transcribe', language: 'th' }, turn_detection: { type: 'server_vad', create_response: true, interrupt_response: true } },
+      input: { transcription, turn_detection: { type: 'server_vad', create_response: true, interrupt_response: true } },
       output: { voice: env.OPENAI_REALTIME_VOICE || 'marin' },
     },
     tools: readyToolSchemas, tool_choice: 'auto',
@@ -119,7 +124,7 @@ async function start(env, sdp) {
   const lease = await reserve(env, shop.runId)
   const form = new FormData()
   form.set('sdp', sdp)
-  form.set('session', JSON.stringify(sessionConfig(env)))
+  form.set('session', JSON.stringify(sessionConfig(env, shop)))
   let callId
   try {
     const res = await fetch(callsUrl, {

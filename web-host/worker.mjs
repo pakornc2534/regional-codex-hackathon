@@ -110,7 +110,12 @@ async function fetchWorker(req,env,ctx) {
   if (ep.startsWith('ready/')) {
     if (req.method !== 'POST') return json({error:'ต้องใช้ POST'},405)
     if (!validPost()) return json({error:'คำขอต้องมาจากหน้าเดโม'},403)
-    if (!readyTool) return handleReadySession(req,env,path)
+    if (!readyTool) {
+      const result = handleReadySession(req,env,path)
+      // Finish releasing the call even when the visitor closes the tab during hangup.
+      if (ep === 'ready/end') ctx?.waitUntil?.(result.then(() => {}))
+      return result
+    }
   }
   if (env.OPENAI_API_KEY && ctx?.waitUntil && ep === 'stamp') {
     ctx.waitUntil(reapExpiredReadySession(env))

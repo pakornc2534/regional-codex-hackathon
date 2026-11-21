@@ -298,7 +298,9 @@ async function readyWithOfflineShop(t) {
   t.mock.method(globalThis, 'fetch', async (url, request) => {
     assert.equal(request.redirect, 'manual', 'Workers must reject redirects without forwarding provider credentials')
     if (url === 'https://api.openai.com/v1/realtime/calls') {
-      registeredTools = JSON.parse(request.body.get('session')).tools
+      const session = JSON.parse(request.body.get('session'))
+      assert.match(session.audio.input.transcription.prompt, /Hello Kitty|Sonic/)
+      registeredTools = session.tools
       return new Response('v=0\r\n', {headers:{location:'/v1/realtime/calls/rtc_ready_test'}})
     }
     assert.equal(url, 'https://api.openai.com/v1/responses')
