@@ -33,7 +33,7 @@ const server=http.createServer(async(req,res)=>{
       return json(dotSummary(domain.readWorld(shop.world),false))
     }
     if(req.method==='GET'){
-      if(path==='/api/state')return json({...domain.readWorld(shop.world),owner:shop.owner,connection:agent.status()})
+      if(path==='/api/state')return json({...domain.readWorld(shop.world),owner:shop.owner,connection:agent.status(),liveManagerAvailable:liveManager.available})
       if(path==='/api/stamp')return json({version:boot+'-'+version})
       if(path==='/api/events'){
         res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Connection':'keep-alive'});res.write(': ready\n\n');events.add(res);req.on('close',()=>events.delete(res));return

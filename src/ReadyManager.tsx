@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { AudioLines, Mic, MicOff, PhoneOff, Send, Volume2, X } from 'lucide-react';
+import { History, Mic, MicOff, Minus, PhoneOff, Send, Volume2 } from 'lucide-react';
 import type { RemoteParticipant, RemoteTrack, Room } from 'livekit-client';
 import { z } from 'zod';
 import { createReadyMicGate } from './ready-mic-gate';
@@ -41,7 +41,10 @@ const avatar = '/ready-manager.webp';
 const readyStates = new Set(['listening', 'thinking', 'speaking']);
 const searchDate = new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' });
 type RoomCredentials = Pick<z.infer<typeof sessionSchema>, 'room' | 'identity'>;
+type FirstTurn = { kind: 'text'; text: string } | { kind: 'mic' };
 type ActiveCall = {
+  firstTurn?: FirstTurn;
+  micWanted: boolean;
   room?: Room;
   abort: AbortController;
   credentials?: RoomCredentials;
@@ -66,7 +69,7 @@ function releaseCall(call: ActiveCall | undefined) {
   }
 }
 
-export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string; onOpenTextManager: () => void }) {
+export function ReadyManager({ shopName, hidden = false, onOpenTextManager }: { shopName: string; hidden?: boolean; onOpenTextManager: () => void }) {
   const [open, setOpen] = useState(false);
   const [call, setCall] = useState<Call>({ phase: 'idle' });
   const [messages, setMessages] = useState<Message[]>([]);
@@ -74,6 +77,7 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
   const [sending, setSending] = useState(false);
   const [mic, setMic] = useState<'off' | 'on' | 'requesting'>('off');
   const [micPaused, setMicPaused] = useState(false);
+  const [micSubscribed, setMicSubscribed] = useState(false);
   const [hasVideo, setHasVideo] = useState(false);
   const [avatarMode, setAvatarMode] = useState<'video' | 'audio'>();
   const [audioBlocked, setAudioBlocked] = useState(false);
@@ -96,6 +100,7 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
     setCall({ phase: 'idle', error });
     setMic('off');
     setMicPaused(false);
+    setMicSubscribed(false);
     setHasVideo(false);
     setAvatarMode(undefined);
     setAudioBlocked(false);
@@ -104,8 +109,20 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
     setSending(false);
   }
 
-  function close() {
-    stopCall();
+  function silenceMic() {
+    const current = active.current;
+    if (!current) return;
+    if (current.firstTurn?.kind === 'mic') current.firstTurn = undefined;
+    if (!current.micWanted) return;
+    current.micWanted = false;
+    setMic('off');
+    void current.room?.localParticipant.setMicrophoneEnabled(false).catch(() => {
+      if (active.current === current) stopCall();
+    });
+  }
+
+  function minimize() {
+    silenceMic();
     setOpen(false);
     button.current?.focus();
   }
@@ -129,17 +146,20 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
   }, []);
 
   useEffect(() => {
-    if (!open) return;
-    closeButton.current?.focus();
+    if (!open || hidden) return;
+    if (window.matchMedia('(pointer: fine)').matches) input.current?.focus();
+    else closeButton.current?.focus();
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !event.isComposing) {
         event.preventDefault();
-        close();
+        minimize();
       }
     };
     window.addEventListener('keydown', escape);
     return () => window.removeEventListener('keydown', escape);
-  }, [open]);
+  }, [open, hidden]);
+
+  useEffect(() => { if (hidden) silenceMic(); }, [hidden]);
 
   useEffect(() => {
     if (call.phase === 'connected' && browserAvatarStage !== 'connecting' && document.activeElement === document.body) input.current?.focus();
@@ -160,14 +180,13 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
     });
   }
 
-  async function startCall() {
+  async function startCall(firstTurn: FirstTurn) {
     if (active.current) return;
-    const current: ActiveCall = { abort: new AbortController(), avatarAudio: warmAvatarAudio() };
+    const current: ActiveCall = { firstTurn, micWanted: false, abort: new AbortController(), avatarAudio: warmAvatarAudio() };
     active.current = current;
     setCall({ phase: 'connecting' });
-    setMessages([]);
     const timeout = window.setTimeout(() => {
-      if (active.current === current) stopCall('ผู้จัดการยังไม่เข้าห้อง ลองเชื่อมต่ออีกครั้งครับ');
+      if (active.current === current) stopCall('ผู้จัดการยังไม่เข้าห้อง ลองเชื่อมต่ออีกครั้ง');
     }, 30000);
     current.abort.signal.addEventListener('abort', () => window.clearTimeout(timeout), { once: true });
     try {
@@ -177,7 +196,8 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
         body: '{}',
         signal: current.abort.signal,
       });
-      if (response.status === 429) throw Error('กำลังมีสายสนทนาอยู่ ลองใหม่อีกครั้งในอีกสักครู่ครับ');
+      if (response.status === 409) throw Error('ผู้จัดการร้านพักงานอยู่ เปิดงานและประวัติ Codex เพื่อให้ทำงานต่อ');
+      if (response.status === 429) throw Error('กำลังมีสายสนทนาอยู่ ลองใหม่อีกครั้งในอีกสักครู่');
       if (!response.ok) throw Error('เปิดผู้จัดการสดไม่ได้ในสภาพแวดล้อมนี้');
       const session = sessionSchema.parse(await response.json());
       current.credentials = { room: session.room, identity: session.identity };
@@ -195,13 +215,13 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
       const micGate = createReadyMicGate(paused => {
         const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
         const media = micTrack?.mediaStreamTrack;
-        if (media && !micTrack.isMuted) media.enabled = !paused;
+        if (media && !micTrack.isMuted) media.enabled = current.micWanted && !paused;
         if (active.current === current) setMicPaused(paused);
       });
       current.micGate = micGate;
       const applyMicGate = () => {
         const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
-        if (track && !track.isMuted) track.mediaStreamTrack.enabled = !micGate.isPaused();
+        if (track && !track.isMuted) track.mediaStreamTrack.enabled = current.micWanted && !micGate.isPaused();
       };
       const isCurrent = () => active.current === current;
       const isAgent = (participant: RemoteParticipant) =>
@@ -248,11 +268,12 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
         }
         if (room.state !== ConnectionState.Connected) return;
         const assistant = Array.from(room.remoteParticipants.values()).find(isAgent);
-        if (entered && !assistant) return stopCall('ผู้จัดการออกจากสายแล้ว เริ่มสายใหม่ได้ครับ');
+        if (entered && !assistant) return stopCall('ผู้จัดการออกจากสายแล้ว เริ่มสายใหม่ได้');
         const assistantState = assistant?.attributes['lk.agent.state'];
         micGate.agentBusy(assistantState === 'thinking' || assistantState === 'speaking');
         const ready = Boolean(assistantState && readyStates.has(assistantState));
-        if (ready) {
+        if (ready && !entered) {
+          setMessages([]);
           entered = true;
           window.clearTimeout(timeout);
         }
@@ -265,9 +286,15 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
         .on(RoomEvent.ParticipantDisconnected, update)
         .on(RoomEvent.ParticipantAttributesChanged, update)
         .on(RoomEvent.LocalTrackPublished, applyMicGate)
+        .on(RoomEvent.LocalTrackSubscribed, publication => {
+          if (isCurrent() && publication.source === Track.Source.Microphone) setMicSubscribed(true);
+        })
+        .on(RoomEvent.LocalTrackUnpublished, publication => {
+          if (isCurrent() && publication.source === Track.Source.Microphone) setMicSubscribed(false);
+        })
         .on(RoomEvent.TrackUnmuted, applyMicGate)
         .on(RoomEvent.Disconnected, () => {
-          if (isCurrent()) stopCall('สายสนทนาสิ้นสุดแล้ว เริ่มสายใหม่ได้ครับ');
+          if (isCurrent()) stopCall('สายสนทนาสิ้นสุดแล้ว เริ่มสายใหม่ได้');
         })
         .on(RoomEvent.AudioPlaybackStatusChanged, () => {
           if (isCurrent()) setAudioBlocked(!room.canPlaybackAudio);
@@ -355,15 +382,20 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
       if (active.current !== current) return;
       const message = error instanceof Error && /[\u0E00-\u0E7F]/.test(error.message)
         ? error.message
-        : 'เชื่อมต่อผู้จัดการสดไม่ได้ ลองใหม่อีกครั้งครับ';
+        : 'เชื่อมต่อผู้จัดการสดไม่ได้ ลองใหม่อีกครั้ง';
       stopCall(message);
     }
   }
 
   async function toggleMic() {
-    const current = active.current;
-    if (!current?.room || mic === 'requesting' || call.phase !== 'connected' || browserAvatarStage === 'connecting') return;
-    const enable = mic !== 'on';
+    if (!active.current) { void startCall({ kind: 'mic' }); return; }
+    if (mic === 'requesting' || call.phase !== 'connected') return;
+    await changeMic(active.current, mic !== 'on');
+  }
+
+  async function changeMic(current: ActiveCall, enable: boolean) {
+    if (!current.room) return;
+    current.micWanted = enable;
     const room = current.room;
     setMic('requesting');
     setCall({ phase: 'connected' });
@@ -371,23 +403,33 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
       const publication = await room.localParticipant.setMicrophoneEnabled(enable, {
         echoCancellation: true, noiseSuppression: true, autoGainControl: true,
       });
+      if (enable && (active.current !== current || !current.micWanted)) {
+        await room.localParticipant.setMicrophoneEnabled(false);
+        return;
+      }
       if (active.current === current) {
         if (enable && current.micGate?.isPaused() && publication?.track) publication.track.mediaStreamTrack.enabled = false;
         setMic(enable ? 'on' : 'off');
       }
-      else if (enable) await room.localParticipant.setMicrophoneEnabled(false);
     } catch {
       if (active.current !== current) return;
+      current.micWanted = !enable;
       setMic(enable ? 'off' : 'on');
-      setCall({ phase: 'connected', error: 'เปลี่ยนสถานะไมโครโฟนไม่ได้ ตรวจสิทธิ์ของเบราว์เซอร์หรือพิมพ์คำถามได้ครับ' });
+      setCall({ phase: 'connected', error: 'เปลี่ยนสถานะไมโครโฟนไม่ได้ ตรวจสิทธิ์ของเบราว์เซอร์หรือพิมพ์คำถามได้' });
     }
   }
 
-  async function send(event: FormEvent<HTMLFormElement>) {
+  function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const current = active.current;
     const text = draft.trim();
-    if (!text || !current?.room || sending || call.phase !== 'connected' || browserAvatarStage === 'connecting') return;
+    if (!text || sending) return;
+    if (!current) { void startCall({ kind: 'text', text }); return; }
+    if (live) void sendText(current, text);
+  }
+
+  async function sendText(current: ActiveCall, text: string) {
+    if (!current.room) return;
     setSending(true);
     setCall({ phase: 'connected' });
     try {
@@ -395,27 +437,40 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
       await current.room.localParticipant.sendText(text, { topic: 'lk.chat' });
       if (active.current !== current) return;
       record({ id: crypto.randomUUID(), kind: 'chat', from: 'owner', text });
-      setDraft('');
-      input.current?.focus();
+      setDraft(value => value.trim() === text ? '' : value);
+      if (input.current?.offsetWidth) input.current.focus();
     } catch {
-      if (active.current === current) setCall({ phase: 'connected', error: 'ส่งคำถามไม่ได้ ลองส่งใหม่ครับ' });
+      if (active.current === current) setCall({ phase: 'connected', error: 'ส่งคำถามไม่ได้ ลองส่งใหม่' });
     } finally {
       if (active.current === current) setSending(false);
     }
   }
 
   const live = call.phase === 'connected' && browserAvatarStage !== 'connecting';
-  const connectionLabel = browserAvatarStage === 'connecting' && call.phase === 'connected'
-    ? 'กำลังเปิดวิดีโอ Anam' : statusText[call.phase];
+  useEffect(() => {
+    const current = active.current;
+    if (!live || !current?.firstTurn) return;
+    const first = current.firstTurn;
+    current.firstTurn = undefined;
+    if (first.kind === 'text') void sendText(current, first.text);
+    else if (open && !hidden) void changeMic(current, true);
+  }, [live, open, hidden]);
+
+  const canSubmit = live || call.phase === 'idle';
+  let connectionLabel = statusText[call.phase];
+  if (call.phase === 'idle' && messages.length) connectionLabel = 'จบการสนทนาแล้ว';
+  else if (call.phase === 'connected' && !live) connectionLabel = 'กำลังเตรียมเสียง';
+  else if (live && (mic === 'requesting' || (mic === 'on' && !micSubscribed))) connectionLabel = 'กำลังเปิดไมค์';
+  else if (live && mic === 'on') connectionLabel = micPaused ? 'พักไมค์ขณะพร้อมตอบ' : 'ไมค์เปิดอยู่';
   const inCall = call.phase !== 'idle';
 
   return (
-    <div className="ready-manager">
-      {open && <section className="ready-panel" id={panelId} aria-label="ผู้จัดการร้านพร้อม">
+    <div className="ready-manager" hidden={hidden} inert={hidden}>
+      <section className="ready-panel" hidden={!open} id={panelId} aria-label="ผู้จัดการร้านพร้อม">
         <header className="ready-panel-head">
-          <img src={avatar} alt="" width={37} height={37}/>
           <div><h2>พร้อม</h2><span>ผู้จัดการร้านจำลอง {shopName}</span></div>
-          <button type="button" ref={closeButton} className="ready-icon" onClick={close} aria-label="ปิดผู้จัดการร้านพร้อม"><X size={20}/></button>
+          <button type="button" className="ready-icon ready-history" onClick={onOpenTextManager} aria-label="งานและประวัติ Codex" title="งานและประวัติ Codex"><History size={18}/></button>
+          <button type="button" ref={closeButton} className="ready-icon" onClick={minimize} aria-label="ย่อแชทพร้อม" title="ย่อแชท"><Minus size={18}/></button>
         </header>
 
         <div className="ready-stage">
@@ -429,20 +484,15 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
             <span className="ready-voice-label">โหมดเสียง</span>}
         </div>
 
-        <div className="ready-controls">
+        {(inCall || messages.length > 0) && <div className="ready-controls">
           <span role="status" className="ready-status" data-live={live} data-mic-paused={mic === 'on' && micPaused}>
-            {mic === 'on' && micPaused && live ? 'พักไมค์ขณะพร้อมตอบ' : connectionLabel}
+            {connectionLabel}
           </span>
-          {!inCall
-            ? <button className="ready-primary" type="button" onClick={() => void startCall()}><AudioLines size={16}/> เริ่มคุยสด</button>
-            : <>
-              <button type="button" className="ready-icon" disabled={!live || mic === 'requesting'} aria-pressed={mic === 'on'} aria-label={mic === 'on' ? 'ปิดไมโครโฟน' : 'เปิดไมโครโฟน'} onClick={() => void toggleMic()}>{mic === 'on' ? <Mic size={18}/> : <MicOff size={18}/>}</button>
-              <button type="button" className="ready-icon ready-end" aria-label="วางสาย" onClick={() => stopCall()}><PhoneOff size={17}/></button>
-            </>}
-        </div>
+          {inCall && <button type="button" className="ready-end" aria-label="วางสาย" onClick={() => stopCall()}><PhoneOff size={15}/> วางสาย</button>}
+        </div>}
 
         <div ref={log} className="ready-messages" role="log" aria-label="ข้อความสนทนากับพร้อม" aria-live="polite">
-          {!messages.length && <p className="ready-hint">ถามยอดขาย สต็อก ออเดอร์ แผนยิงแอด หรือให้พร้อมค้นข้อมูลคู่แข่งล่าสุด</p>}
+          {!messages.length && <p className="ready-hint">พิมพ์ถามเรื่องร้าน หรือกดไมค์เพื่อคุยกับพร้อม</p>}
           {messages.map(message => message.kind === 'chat'
             ? <div key={message.id} className={message.from === 'owner' ? 'ready-message ready-owner' : 'ready-message'}>
                 <b>{message.from === 'owner' ? 'คุณ' : 'พร้อม'}</b><p>{message.text}</p>
@@ -460,17 +510,18 @@ export function ReadyManager({ shopName, onOpenTextManager }: { shopName: string
             void active.current?.room?.startAudio().catch(() => setAudioBlocked(true));
             void active.current?.avatar?.enableAudio();
           }}><Volume2 size={17}/> เปิดเสียงคำตอบ</button>}
-        {call.error && <div className="ready-error" role="alert">{call.error}{!inCall && <button type="button" onClick={() => { close(); onOpenTextManager(); }}>เปิดแชทข้อความเดิม</button>}</div>}
+        {call.error && <div className="ready-error" role="alert">{call.error}</div>}
         <form className="ready-compose" onSubmit={send}>
           <label className="ready-sr" htmlFor={panelId + '-question'}>คำถามถึงพร้อม</label>
-          <input ref={input} id={panelId + '-question'} value={draft} onChange={event => setDraft(event.target.value)} disabled={!live || sending} placeholder="พิมพ์คำถามถึงพร้อม" maxLength={1000}/>
-          <button type="submit" className="ready-primary" aria-label="ส่งคำถามถึงพร้อม" disabled={!live || sending || !draft.trim()}><Send size={17}/></button>
+          <input ref={input} id={panelId + '-question'} value={draft} onChange={event => setDraft(event.target.value)} placeholder={!inCall && messages.length ? 'เริ่มบทสนทนาใหม่…' : 'พิมพ์คำถามถึงพร้อม'} maxLength={1000}/>
+          <button type="button" className="ready-icon ready-mic" disabled={!canSubmit || mic === 'requesting'} aria-pressed={mic === 'on'} aria-label={mic === 'on' ? 'ปิดไมโครโฟน' : 'เปิดไมโครโฟน'} title={mic === 'on' ? 'ปิดไมโครโฟน' : 'เปิดไมโครโฟน'} onClick={() => void toggleMic()}>{mic === 'on' && micPaused ? <MicOff size={18}/> : <Mic size={18}/>}</button>
+          <button type="submit" className="ready-primary" aria-label="ส่งคำถามถึงพร้อม" disabled={!canSubmit || sending || !draft.trim()}><Send size={17}/></button>
         </form>
-      </section>}
+      </section>
 
-      <button ref={button} type="button" className="ready-launcher" aria-expanded={open} aria-controls={open ? panelId : undefined} aria-label={open ? 'ย่อผู้จัดการร้านพร้อม' : 'เปิดผู้จัดการร้านพร้อม'} onClick={() => open ? close() : setOpen(true)}>
+      <button ref={button} type="button" className="ready-launcher" aria-expanded={open} aria-controls={open ? panelId : undefined} aria-label={open ? 'ย่อผู้จัดการร้านพร้อม' : 'เปิดผู้จัดการร้านพร้อม'} onClick={() => open ? minimize() : setOpen(true)}>
         <img src={avatar} alt="" width={40} height={40}/>
-        <span>พร้อม<small>ผู้จัดการร้าน</small></span>
+        <span>พร้อม<small>{inCall ? 'อยู่ในสาย' : 'ผู้จัดการร้าน'}</small></span>
       </button>
     </div>
   );

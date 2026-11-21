@@ -26,14 +26,16 @@ function toolAuthorized(value,secret) {
 export function liveManagerSessions(shop, env = process.env, fetchAvatar = fetch) {
   let current
   let lastStarted = 0
-  const available = env.LIVE_MANAGER_ENABLED === 'true' && env.DEMO_RUNTIME !== 'true' &&
+  const configured = env.LIVE_MANAGER_ENABLED === 'true' && env.DEMO_RUNTIME !== 'true' &&
     Boolean(env.LIVEKIT_URL && env.LIVEKIT_API_KEY && env.LIVEKIT_API_SECRET && env.LIVE_MANAGER_TOOL_SECRET?.length >= 32)
-  const browserAvatar = available && browserAvatarConfigured(env)
-  const rooms = available ? new RoomServiceClient(env.LIVEKIT_URL.replace(/^ws/,'http'),env.LIVEKIT_API_KEY,env.LIVEKIT_API_SECRET) : null
+  const available = () => configured && shop.world.shop.mode === 'simulated'
+  const browserAvatar = configured && browserAvatarConfigured(env)
+  const rooms = configured ? new RoomServiceClient(env.LIVEKIT_URL.replace(/^ws/,'http'),env.LIVEKIT_API_KEY,env.LIVEKIT_API_SECRET) : null
 
   return {
+    get available() { return available() },
     async start() {
-      if (!available || shop.world.shop.mode !== 'simulated') error(503,'การคุยสดยังไม่ได้เปิดในระบบนี้')
+      if (!available()) error(503,'การคุยสดยังไม่ได้เปิดในระบบนี้')
       if (shop.world.managerPaused) error(409,'ผู้จัดการร้านพักงานอยู่')
       const now = Date.now()
       if (current?.expiresAt > now || now - lastStarted < 5000) error(429,'มีสายอยู่แล้ว กรุณาวางสายก่อนเริ่มใหม่')
@@ -76,7 +78,7 @@ export function liveManagerSessions(shop, env = process.env, fetchAvatar = fetch
       return {sessionToken:result.sessionToken}
     },
     read(body,headers) {
-      if (!available || !toolAuthorized(headers.authorization,env.LIVE_MANAGER_TOOL_SECRET)) error(403,'ไม่ได้รับอนุญาตให้อ่านข้อมูลร้าน')
+      if (!available() || !toolAuthorized(headers.authorization,env.LIVE_MANAGER_TOOL_SECRET)) error(403,'ไม่ได้รับอนุญาตให้อ่านข้อมูลร้าน')
       if (!current || headers['x-live-manager-room'] !== current.room || current.expiresAt <= Date.now()
         || current.runId !== shop.world.runId || shop.world.managerPaused) error(409,'สายหมดอายุหรือรอบร้านเปลี่ยนแล้ว')
       return readLiveManagerTool(shop.world,body)

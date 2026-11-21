@@ -15,6 +15,7 @@ const env = {
 test('LiveKit browser gets a short microphone-only room grant and scoped merchant tools', async () => {
   const shop = {world:seedWorld()}
   const sessions = liveManagerSessions(shop,env)
+  assert.equal(sessions.available,true)
   const session = await sessions.start()
   const jwt = JSON.parse(Buffer.from(session.token.split('.')[1], 'base64url'))
   assert.equal(jwt.sub,session.identity)
@@ -37,6 +38,20 @@ test('LiveKit browser gets a short microphone-only room grant and scoped merchan
 
 test('the public simulator relay cannot mint paid voice sessions', async () => {
   const sessions = liveManagerSessions({world:seedWorld()},{...env,DEMO_RUNTIME:'true'})
+  assert.equal(sessions.available,false)
+  await assert.rejects(sessions.start(),{status:503})
+})
+
+test('voice capability follows shop mode and requires all session credentials', async () => {
+  const shop = {world:seedWorld()}
+  for (const key of ['LIVE_MANAGER_ENABLED','LIVEKIT_URL','LIVEKIT_API_KEY','LIVEKIT_API_SECRET','LIVE_MANAGER_TOOL_SECRET']) {
+    const sessions = liveManagerSessions(shop,{...env,[key]:''})
+    assert.equal(sessions.available,false)
+    await assert.rejects(sessions.start(),{status:503})
+  }
+  const sessions = liveManagerSessions(shop,env)
+  shop.world.shop.mode = 'live'
+  assert.equal(sessions.available,false)
   await assert.rejects(sessions.start(),{status:503})
 })
 

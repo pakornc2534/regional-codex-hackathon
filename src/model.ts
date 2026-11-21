@@ -48,6 +48,7 @@ const stateSchema = z.object({
     memories: z.array(z.object({ id: s, text: s })),
   }),
   connection: z.object({ status: s, detail: s.optional() }),
+  liveManagerAvailable: z.boolean().optional(),
   hosted: z.object({ publicDemo: z.boolean().optional(), stale: z.boolean().optional(), ageMs: n.nullable().optional() }).optional(),
 });
 export type ShopState = z.infer<typeof stateSchema>;
