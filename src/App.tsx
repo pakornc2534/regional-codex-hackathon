@@ -62,7 +62,7 @@ function useShopState() {
   const [loadError, setLoadError] = useState('');
   const seen = useRef<string>(undefined);
   const inFlight = useRef<Promise<ShopState | undefined>>(undefined);
-  const refresh = useCallback((force = true) => {
+  const refresh = useCallback((force = true): Promise<ShopState | undefined> => {
     if (inFlight.current) return force ? inFlight.current.then(() => refresh(true)) : inFlight.current;
     const load = async () => {
       try {
