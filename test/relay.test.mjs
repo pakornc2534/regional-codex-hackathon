@@ -46,9 +46,9 @@ class Bucket {
   }
 }
 
-function site() {
+function site(overrides = {}) {
   const bucket = new Bucket()
-  const env = {BUCKET:bucket,PUBLIC_DEMO_ENABLED:'true',RELAY_SECRET:'test-credential'}
+  const env = {BUCKET:bucket,PUBLIC_DEMO_ENABLED:'true',RELAY_SECRET:'test-credential',...overrides}
   const get = path => worker.fetch(new Request(host + path),env)
   const post = (path,body,headers) => worker.fetch(new Request(host + path,{
     method:'POST',headers,body:typeof body === 'string' ? body : JSON.stringify(body)
@@ -254,4 +254,36 @@ test('customer FAQ and cached product answers bypass the relay with an offline M
   assert.match((await (await ask('พวงกุญแจโซนิค')).json()).text,/รหัส SKU/)
   assert.equal((await get('/api/dot-summary')).status,200)
   assert.deepEqual((await bucket.list({prefix:'queue/',limit:10})).objects,[])
+})
+
+test('public gateway limits AI requests by edge client and across clients, while catalog and state remain usable', {timeout:8000}, async t => {
+  t.mock.timers.enable({apis:['Date'],now:new Date('2026-10-01T00:00:10Z')})
+  const {bucket,post,get} = site({AI_REQUESTS_PER_IP_MINUTE:'1', AI_REQUESTS_GLOBAL_MINUTE:'2'})
+  const state = readWorld(seedWorld())
+  await post('/relay/snapshot',await encode(state),relayHeaders)
+  const headers = address => ({...appHeaders, 'cf-connecting-ip':address})
+  async function admit(address) {
+    const reply = post('/api/chat', {message:'สอบถามร้าน', clientKey:'from-browser'}, headers(address))
+    let job
+    for (let i=0; i<100 && !job; i++) {
+      if ((await bucket.list({prefix:'queue/', limit:1})).objects.length) {
+        job = (await (await post('/relay/poll',{runId:state.runId},relayHeaders)).json()).job
+      } else await new Promise(resolve => setTimeout(resolve, 5))
+    }
+    assert.ok(job)
+    assert.match(job.clientKey,/^[a-f0-9]{64}$/)
+    assert.equal(job.body.clientKey,'from-browser')
+    assert.equal(JSON.stringify(job).includes(address),false)
+    await post('/relay/result',{id:job.id,result:{status:202,body:{status:'queued'}}},relayHeaders)
+    assert.equal((await reply).status,202)
+    return job.clientKey
+  }
+  const first = await admit('192.0.2.10')
+  const limited = await post('/api/chat',{message:'อีกครั้ง'},headers('192.0.2.10'))
+  assert.equal(limited.status,429)
+  assert.ok(Number(limited.headers.get('retry-after')) > 0)
+  assert.notEqual(await admit('192.0.2.20'),first)
+  assert.equal((await post('/api/chat',{message:'ลอง'},headers('192.0.2.30'))).status,429)
+  assert.equal((await get('/api/state')).status,200)
+  assert.equal((await (await post('/api/customer/ask',{message:'SONIC'},headers('192.0.2.10'))).json()).source,'catalog')
 })

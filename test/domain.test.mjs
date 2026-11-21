@@ -59,6 +59,39 @@ test('whole-plan matching captures discount lost on baseline sales', () => {
   assert.equal(13 * result.unitContribution - 300,532)
 })
 
+test('ROBOT packing slots grow monotonically as capacity covers competing demand', () => {
+  const world = seedWorld()
+  // The paid queue holds 38 units. Of the next 73 normal units, 16 belong to ROBOT.
+  for (let packingCapacity = 38; packingCapacity <= 120; packingCapacity++) {
+    const free = packingCapacity - 38
+    const expectedSlots = free < 73 ? Math.floor(free * 16 / 73) : free - 57
+    const plan = growthPlan(world,{packingCapacity})
+    assert.equal(plan.preparationCapacity,expectedSlots,'packing capacity ' + packingCapacity)
+    assert.equal(plan.supportablePlanUnits,Math.min(19,expectedSlots))
+    assert.equal(plan.otherUnits + plan.preparationCapacity,free)
+  }
+})
+
+test('material allowances use the normal sales mix before rounding to whole selling units', () => {
+  const world = seedWorld()
+  const labels = world.supplies.find(item => item.id === 'label')
+  for (const free of [0,1,55,56,57,58,72,73,74,82]) {
+    labels.quantity = 38 + free
+    const plan = growthPlan(world,{packingCapacity:120})
+    const label = plan.materials.find(item => item.supplyId === 'label')
+    const expectedSets = free < 73 ? Math.floor(free * 16 / 73) : free - 57
+    assert.equal(label.capacity,expectedSets,'free labels ' + free)
+    assert.equal(plan.materialCapacity,expectedSets)
+    assert.equal(plan.preparationCapacity,25)
+    assert.equal(plan.supportablePlanUnits,Math.min(19,expectedSets))
+  }
+  // A ROBOT uses 0.15 ml. Its share of 0.68 ml falls just short of one complete set.
+  const ink = world.supplies.find(item => item.id === 'ink')
+  ink.quantity = 5.70 + 0.68
+  const inkShare = growthPlan(world).materials.find(item => item.supplyId === 'ink')
+  assert.deepEqual([inkShare.remaining,inkShare.reservedForOthers,inkShare.capacity],[0.14,0.54,0])
+})
+
 test('zero and unknown capacity, cash, and unit costs stay distinct', () => {
   const world = seedWorld()
   const low = growthPlan(world,{packingCapacity:20,cash:0})

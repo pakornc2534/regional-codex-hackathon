@@ -1,5 +1,5 @@
 import {spawn} from 'node:child_process'
-import {mkdirSync,readFileSync,existsSync,writeFileSync,renameSync} from 'node:fs'
+import {mkdirSync,readFileSync,existsSync,writeFileSync,renameSync,rmSync} from 'node:fs'
 import {resolve,join} from 'node:path'
 import {encode} from './codec.mjs'
 import {commandReference,persistedResult} from './recovery.mjs'
@@ -20,6 +20,8 @@ let stopped = false
 for (const sig of ['SIGINT','SIGTERM']) process.on(sig,() => {stopped = true;child.kill()})
 child.on('exit',code => {stopped = true;process.exitCode = code || 0})
 
+const healthFile = process.env.RELAY_HEALTH_FILE
+if (healthFile) rmSync(healthFile, {force:true})
 const journal = join(dir,'delivery.json')
 const endpoints = new Set(['customer/ask','customer/status','chat','sim/command','sim/analyze','sim/growth','sim/impact','memories','reconnect','chat/cancel'])
 const uncertain = {status:409,body:{error:'คำสั่งอาจดำเนินการแล้ว โปรดตรวจสอบสถานะก่อนลองใหม่',status:'uncertain'}}
@@ -63,13 +65,18 @@ async function executeJob(job,payload) {
   if (!endpoints.has(job.ep) || job.runId !== runId || Date.now() > job.expiresAt) {
     return {status:409,body:{error:'คำสั่งหมดอายุหรือรอบร้านเปลี่ยนแล้ว'}}
   }
+  const headers = {'Content-Type':'application/json',Origin:origin}
+  if (typeof job.clientKey === 'string' && /^[0-9a-f]{64}$/.test(job.clientKey)) headers['X-Shop-Client-Key'] = job.clientKey
   const response = await fetch(origin + '/api/' + job.ep,{
     method:'POST',
-    headers:{'Content-Type':'application/json',Origin:origin},
+    headers,
     body:JSON.stringify(payload),
     signal:AbortSignal.timeout(12_000)
   })
-  return {status:response.status,body:await response.json()}
+  const result = {status:response.status,body:await response.json()}
+  const retryAfter = response.headers.get('retry-after')
+  if (response.status === 429 && retryAfter !== null) result.retryAfter = Number(retryAfter)
+  return result
 }
 
 while (!stopped) {
@@ -87,6 +94,7 @@ while (!stopped) {
       version = ''
       continue
     }
+    if (healthFile) writeFileSync(healthFile,'', {mode:0o600})
     if (job) {
       const payload = {...job.body,runId:job.runId}
       const reference = commandReference(job.runId,job.ep,payload)

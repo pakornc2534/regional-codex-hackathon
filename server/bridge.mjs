@@ -4,12 +4,26 @@ import {homedir,tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {mkdtempSync,symlinkSync,existsSync,readFileSync,writeFileSync,rmSync,mkdirSync} from 'node:fs'
 
+import {OpenAIBridge} from './openai-bridge.mjs'
+import {createModelBudget} from './model-budget.mjs'
+
+export function createBridge(env = process.env) {
+  const budget = createModelBudget(env)
+  switch (env.MODEL_PROVIDER ?? 'codex') {
+    case 'openai': return new OpenAIBridge(env, budget)
+    case 'codex': return new CodexBridge(budget)
+    default: throw Error('MODEL_PROVIDER ต้องเป็น openai หรือ codex')
+  }
+}
+
 // A dedicated process has no user MCP servers, plugins, hooks or project instructions.
 // Only login material is linked. The model and reasoning selection come from the owner's config.
-export class Bridge {
-  constructor(){this.status='disconnected';this.detail='ยังไม่ได้เชื่อมต่อ Codex';this.seq=0;this.requests=new Map()}
+class CodexBridge {
+  constructor(budget){this.budget=budget;this.status='disconnected';this.detail='ยังไม่ได้เชื่อมต่อ Codex';this.seq=0;this.requests=new Map()}
+  checkAvailability(){this.budget.check()}
   close(){this.child?.kill();this.child=null;this.status='disconnected'}
   async connect(){
+    try { this.checkAvailability() } catch (error) { this.close();this.detail=error.message;throw error }
     if(this.connecting)return this.connecting
     if(this.child && this.status==='ready')return
     this.connecting=this.open().finally(()=>{this.connecting=null})
@@ -70,6 +84,7 @@ export class Bridge {
         if(m.method==='item/completed' && m.params.item.type==='agentMessage')answer=m.params.item.text
         if(m.method==='turn/completed'){const t=m.params.turn;t.status==='completed'&&answer?resolve(answer):reject(Error(t.error?.message||'Codex ไม่ส่งคำตอบ'))}
       }
+      this.budget.reserve()
       this.request('turn/start',{threadId:this.currentThread,input:[{type:'text',text:prompt,text_elements:[]}],environments:[]}).catch(reject)
     })}finally{clearTimeout(timer);signal.removeEventListener('abort',abort);this.notify=null;this.call=null;this.fatal=null;this.currentThread=null}
   }

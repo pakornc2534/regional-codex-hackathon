@@ -226,7 +226,7 @@ export function Manager({ state, room, variant, draft, setDraft, send, reconnect
   return <aside className="desk-pane" aria-label="ผู้จัดการ AI">
     <header className="desk-head">
       <span className="desk-avatar"><ShopIcon name="manager" size={40}/></span>
-      <div><h2>ผู้จัดการ AI</h2><span className={connected && !state.managerPaused ? 'desk-status ready' : 'desk-status'}><i aria-hidden="true"/>{state.managerPaused ? 'พักงานอยู่' : connected ? 'เชื่อมต่อ Codex แล้ว' : 'ออฟไลน์'}</span></div>
+      <div><h2>ผู้จัดการ AI</h2><span className={connected && !state.managerPaused ? 'desk-status ready' : 'desk-status'}><i aria-hidden="true"/>{state.managerPaused ? 'พักงานอยู่' : connected ? 'เชื่อมต่อ AI แล้ว' : 'ออฟไลน์'}</span></div>
       <button type="button" className="desk-pause" disabled={busy} aria-label={state.managerPaused ? 'ให้ผู้จัดการทำงานต่อ' : 'พักผู้จัดการ'} title={state.managerPaused ? 'ให้ผู้จัดการทำงานต่อ' : 'พักผู้จัดการ'} onClick={() => void action({ type:'pause_manager', paused:!state.managerPaused })}>{state.managerPaused ? <Play size={17} aria-hidden="true"/> : <Pause size={17} aria-hidden="true"/>}</button>
     </header>
     <div className="desk-context">

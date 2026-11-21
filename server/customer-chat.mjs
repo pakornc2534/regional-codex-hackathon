@@ -1,13 +1,14 @@
 import {randomUUID} from 'node:crypto'
-import {Bridge} from './bridge.mjs'
+import {createBridge} from './bridge.mjs'
+import {ModelAccessError} from './model-budget.mjs'
 import {customerCatalog, catalogReply, customerCompleted, customerFaq, customerQuestion, matchCustomerProducts} from '../shared/customer-catalog.mjs'
 
-export function customerChat(shop, bridge = new Bridge()) {
+export function customerChat(shop, bridge = createBridge()) {
   const jobs = new Map()
   let active = false
   let retryAfter = 0
 
-  function submit(input) {
+  function submit(input, beforeModel = () => {}) {
     const message = customerQuestion(input)
     const faq = customerFaq(message)
     if (faq) return faq
@@ -18,8 +19,10 @@ export function customerChat(shop, bridge = new Bridge()) {
     const fallback = customerCompleted(catalogReply([]))
     const now = Date.now()
     for (const [id, job] of jobs) if (job.until <= now) jobs.delete(id)
+    bridge.checkAvailability?.()
     if (active || retryAfter > now || jobs.size >= 90 || shop.world.managerPaused) return fallback
 
+    beforeModel()
     retryAfter = now + 4000
     active = true
     const id = randomUUID()
@@ -36,7 +39,10 @@ export function customerChat(shop, bridge = new Bridge()) {
         const relevant = live.filter(row => selected.includes(row.sku))
         job.result = customerCompleted(catalogReply(relevant.slice(0,5)), 'ai')
       })
-      .catch(() => {job.result = fallback})
+      .catch(error => {
+        if (error instanceof ModelAccessError) job.error = error
+        else job.result = fallback
+      })
       .finally(() => {active=false})
     return {status:'pending',id}
   }
@@ -45,6 +51,7 @@ export function customerChat(shop, bridge = new Bridge()) {
     status(id) {
       const job = jobs.get(id)
       if (!job || job.until <= Date.now() || job.runId !== shop.world.runId) throw Error('คำถามหมดอายุ กรุณาถามใหม่')
+      if (job.error) throw job.error
       return job.result
     },
     close: () => bridge.close()
