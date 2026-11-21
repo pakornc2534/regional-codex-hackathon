@@ -230,3 +230,28 @@ globalThis.fetch = async (input,options) => {
     rmSync(directory,{recursive:true,force:true})
   }
 })
+
+test('customer FAQ and cached product answers bypass the relay with an offline Mac', async () => {
+  const {bucket,get,post} = site()
+  const ask = message => post('/api/customer/ask',{message},appHeaders)
+  const faq = await ask('ค่าส่งเท่าไหร่')
+  assert.equal(faq.status,200)
+  assert.match((await faq.json()).text,/ไม่มีค่าส่ง/)
+
+  const state = readWorld(seedWorld())
+  assert.equal((await post('/relay/snapshot',await encode(state),relayHeaders)).status,200)
+  const live = await (await ask('SONIC ยังมีของไหม')).json()
+  assert.match(live.text,/฿249 · เหลือขาย 1 ชิ้น/)
+  assert.doesNotMatch(live.text,/ข้อมูลล่าสุดที่บันทึกไว้/)
+
+  const {customMetadata} = bucket.rows.get('snapshot')
+  const seen = await (await bucket.get('seen')).json()
+  await bucket.put('seen',JSON.stringify({...seen,at:Number(customMetadata.dataAt) - 60000}))
+  const offline = await (await ask('SONIC ยังมีของไหม')).json()
+  assert.equal(offline.source,'catalog')
+  assert.match(offline.text,/฿249 · เหลือขาย 1 ชิ้น/)
+  assert.match(offline.text,/ข้อมูลล่าสุดที่บันทึกไว้/)
+  assert.match((await (await ask('พวงกุญแจโซนิค')).json()).text,/รหัส SKU/)
+  assert.equal((await get('/api/dot-summary')).status,200)
+  assert.deepEqual((await bucket.list({prefix:'queue/',limit:10})).objects,[])
+})

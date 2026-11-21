@@ -11,6 +11,10 @@ for(const item of names){const full=path.join('dist/client',item);if(!(await fs.
   assets['/'+item.split(path.sep).join('/')]=[types[path.extname(item)]||'application/octet-stream',gzipSync(await fs.readFile(full)).toString('base64')]}
 let src=await fs.readFile('web-host/worker.mjs','utf8')
 src=src.replace("import {decode,encode,bounded} from './codec.mjs'",(await fs.readFile('web-host/codec.mjs','utf8')).replace(/^export /gm,''))
+const customerMoney = (await fs.readFile('shared/baht.mjs','utf8')).replace(/^export /gm,'')
+const customerCatalog = (await fs.readFile('shared/customer-catalog.mjs','utf8'))
+  .replace("import {bahtAmount} from './baht.mjs'", '').replace(/^export /gm,'')
+src=src.replace(/^import .* from '\.\.\/shared\/customer-catalog\.mjs'$/m,()=>customerMoney+'\n'+customerCatalog)
 const dotMonitor=await fs.readFile('shared/dot-monitor.mjs','utf8')
 src=src.replace("import {dotSummary} from '../shared/dot-monitor.mjs'",()=>dotMonitor.replace(/^export /gm,''))
 src+='\nconst ASSET_MAP='+JSON.stringify(assets)+';\n'+`function serveAsset(path){
