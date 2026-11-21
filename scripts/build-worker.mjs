@@ -1,13 +1,16 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import {gzipSync} from 'node:zlib'
+import {buildDotDownload, dotDownloadName} from './dot-download.mjs'
+await fs.mkdir('dist/client/downloads',{recursive:true})
+await fs.writeFile(path.join('dist/client/downloads',dotDownloadName),await buildDotDownload())
 await fs.mkdir('dist/client/guide',{recursive:true})
 await fs.copyFile('docs/guide/index.html','dist/client/guide/index.html')
 const names=await fs.readdir('dist/client',{recursive:true})
-const types={'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.woff2':'font/woff2','.json':'application/json'}
+const types={'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.woff2':'font/woff2','.json':'application/json','.zip':'application/zip','.mp3':'audio/mpeg'}
 const assets={}
 for(const item of names){const full=path.join('dist/client',item);if(!(await fs.stat(full)).isFile())continue
-  assets['/'+item]=[types[path.extname(item)]||'application/octet-stream',gzipSync(await fs.readFile(full)).toString('base64')]}
+  assets['/'+item.split(path.sep).join('/')]=[types[path.extname(item)]||'application/octet-stream',gzipSync(await fs.readFile(full)).toString('base64')]}
 let src=await fs.readFile('web-host/worker.mjs','utf8')
 src=src.replace("import {decode,encode,bounded} from './codec.mjs'",(await fs.readFile('web-host/codec.mjs','utf8')).replace(/^export /gm,''))
 const dotMonitor=await fs.readFile('shared/dot-monitor.mjs','utf8')

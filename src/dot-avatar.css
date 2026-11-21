@@ -1,0 +1,97 @@
+.dot-avatar-card {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: minmax(140px, 24%) minmax(0, 1fr);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--white);
+  overflow: hidden;
+}
+.dot-avatar-stage {
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  min-height: 170px;
+  place-items: center;
+  isolation: isolate;
+  background: radial-gradient(ellipse at 48% 70%, #496364 0%, #304952 48%, #203442 100%);
+}
+.dot-avatar-copy { min-width: 0; padding: 20px clamp(16px, 2.3vw, 29px); align-self: center; }
+.dot-avatar-copy h2 { margin: 0 0 5px; font-size: clamp(19px, 2.15vw, 25px); color: var(--ink); }
+.dot-avatar-caption { color: #425059; font-size: 15px; line-height: 1.6; }
+.dot-avatar-caption strong { color: var(--ink); font-weight: 650; }
+.dot-avatar-actions { margin-top: 14px; display: flex; align-items: center; gap: 9px 14px; flex-wrap: wrap; }
+.dot-avatar-actions a { font-size: 14px; font-weight: 620; text-underline-offset: 3px; }
+.dot-avatar-actions details { min-width: 0; max-width: 100%; font-size: 14px; }
+.dot-avatar-actions details summary { padding-block: 5px; color: var(--green); font-weight: 620; cursor: pointer; }
+.dot-avatar-actions details[open] { flex-basis: 100%; }
+.dot-avatar-actions details p { margin: 4px 0 10px; color: var(--muted); }
+.dot-avatar-actions details a { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; text-decoration: none; }
+.dot-avatar-play {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 42px; border: 1px solid #aebbbd;
+  border-radius: var(--radius); padding: 6px 13px; background: var(--white); color: var(--navy);
+  font: inherit; font-size: 14px; font-weight: 650; cursor: pointer;
+}
+.dot-avatar-play:hover { border-color: var(--green); background: var(--soft); }
+.dot-avatar-notice { font-size: 13px; color: var(--muted); }
+.dot-avatar-notice:not(:empty) { margin-top: 6px; }
+
+/* A little enamel shop robot. Keep its silhouette readable against the dark display. */
+.dot-robot {
+  position: relative;
+  width: 148px;
+  height: 150px;
+  flex: none;
+  pointer-events: none;
+  user-select: none;
+  --robot-rim: #635a4c;
+  --robot-led: #9dfff0;
+  --robot-cream: linear-gradient(135deg, #fffcdf 4%, #f4eacc 40%, #d7c9a8 82%, #b2a285);
+  --robot-copper: linear-gradient(115deg, #ecab78 4%, #bd6c45 58%, #884832);
+}
+.dot-robot i { display: block; position: absolute; }
+.dot-robot-figure, .dot-robot-head, .dot-robot-body, .dot-robot-shell, .dot-robot-visor, .dot-robot-jacket { position: absolute; }
+.dot-robot-shadow {
+  inset: auto 19px 1px; height: 12px; border-radius: 50%;
+  background: radial-gradient(ellipse at center, #13232dc4, #24364087 48%, transparent 73%);
+}
+.dot-robot-figure { inset: 0; }
+.dot-robot-head { z-index: 2; top: 27px; left: 21px; width: 106px; height: 69px; transform: rotate(-4deg); transform-origin: 50% 90%; }
+.dot-robot-shell { inset: 0; border: 1px solid var(--robot-rim); border-radius: 30% 29% 25% 25% / 43% 42% 32% 32%; background: var(--robot-cream); box-shadow: inset 2px 3px 2px #ffffedcc, inset -2px -4px 1px #aa997d; }
+.dot-robot-visor { inset: 10px 7px 8px; overflow: hidden; border-radius: 22% 22% 25% 25% / 36% 36% 38% 38%; background: linear-gradient(143deg, #41545c, #162f3c 48%, #192f35); border: 2px solid #4d5957; box-shadow: inset 1px 2px 3px #102730; }
+.dot-robot-visor::before { content: ''; position: absolute; inset: 0; background: linear-gradient(119deg, transparent 14%, #e4ffff0e 14.5%, #e4ffff0e 30%, transparent 31%); }
+.dot-robot-aerial { top: -16px; left: 54px; width: 5px; height: 19px; background: #bea27e; border: 1px solid #8b755d; border-radius: 3px; transform: rotate(9deg); }
+.dot-robot-aerial::before { content: ''; position: absolute; width: 11px; height: 11px; inset: -5px auto auto -4px; border: 1px solid #8b5b48; border-radius: 50%; background: radial-gradient(circle at 33% 25%, #fff3c1, #f2b775 34%, #b55e3f 80%); }
+.dot-robot-ear { top: 26px; width: 11px; height: 25px; border: 1px solid #76533d; border-radius: 4px; background: var(--robot-copper); }
+.dot-robot-ear-left { left: -5px; } .dot-robot-ear-right { right: -5px; }
+.dot-robot-eyes { position: absolute; display: flex; justify-content: space-between; inset: 11px 19px auto; height: 14px; }
+.dot-robot-eyes i { position: static; width: 9px; height: 14px; border-radius: 5px; background: var(--robot-led); box-shadow: 0 0 7px #7ae6db80; }
+.dot-robot-mouth { left: calc(50% - 9px); bottom: 7px; width: 18px; height: 4px; border-radius: 2px 2px 7px 7px; background: var(--robot-led); transform-origin: center; }
+.dot-robot-body { left: 43px; top: 89px; width: 62px; height: 45px; }
+.dot-robot-jacket { inset: 0; border: 1px solid var(--robot-rim); border-radius: 15px 15px 17px 17px; background: var(--robot-cream); box-shadow: inset -2px -3px 0 #c6b797; }
+.dot-robot-jacket::before { content: ''; position: absolute; top: 1px; left: 11px; right: 11px; height: 7px; background: var(--robot-copper); border-radius: 1px 1px 6px 6px; }
+.dot-robot-light { top: 16px; left: 11px; width: 10px; height: 10px; border: 2px solid #344c4e; border-radius: 50%; background: #9ed7c6; }
+.dot-robot-speaker { top: 17px; right: 9px; width: 13px; height: 9px; background: repeating-linear-gradient(to bottom, #806e58 0 1px, transparent 1px 3px); }
+.dot-robot-arm { top: 5px; height: 30px; width: 16px; border: 1px solid var(--robot-rim); border-radius: 9px 9px 11px 11px; background: var(--robot-cream); transform-origin: 50% 5px; }
+.dot-robot-arm-left { left: -10px; transform: rotate(14deg); } .dot-robot-arm-right { right: -10px; transform: rotate(-14deg); }
+.dot-robot-foot { bottom: -10px; width: 23px; height: 16px; border-radius: 7px 7px 5px 5px; border-bottom: 3px solid #403e37; background: var(--robot-copper); }
+.dot-robot-foot-left { left: 5px; } .dot-robot-foot-right { right: 5px; }
+.dot-robot[data-talking="true"] .dot-robot-mouth { animation: dot-mouth-talk .36s ease-in-out infinite alternate; }
+.dot-robot[data-talking="true"] .dot-robot-head { animation: dot-head-talk 1.35s ease-in-out infinite alternate; }
+.dot-robot[data-talking="true"] .dot-robot-arm-right { animation: dot-arm-talk 1.45s ease-in-out infinite alternate; }
+.dot-robot[data-talking="true"] .dot-robot-light { background: #bbfff2; box-shadow: 0 0 4px #8dcdbb; }
+@keyframes dot-mouth-talk { 0%, 84% { transform: scale(1, .55); } 36% { transform: scale(.72, 1.95); } 65% { transform: scale(.85, 1.15); } 100% { transform: scale(.65, 1.8); } }
+@keyframes dot-head-talk { from { transform: rotate(-4deg); } to { transform: translateY(-2px) rotate(0); } }
+@keyframes dot-arm-talk { from { transform: rotate(-17deg); } to { transform: rotate(-34deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .dot-robot[data-talking="true"] :is(.dot-robot-mouth,.dot-robot-head,.dot-robot-arm-right) { animation: none; }
+  .dot-robot[data-talking="true"] .dot-robot-mouth { height: 7px; }
+}
+@media (max-width: 550px) {
+  .dot-avatar-card { grid-template-columns: 95px minmax(0, 1fr); padding: 12px; column-gap: 12px; }
+  .dot-avatar-copy { display: contents; }
+  .dot-avatar-stage { grid-area: 1 / 1 / 3 / 2; min-height: 124px; overflow: hidden; border-radius: 4px; }
+  .dot-avatar-stage .dot-robot { transform: scale(.75); }
+  .dot-avatar-copy h2 { grid-area: 1 / 2; align-self: end; }
+  .dot-avatar-caption { grid-area: 2 / 2; }
+  .dot-avatar-actions, .dot-avatar-notice { grid-column: 1 / -1; }
+}

@@ -40,7 +40,7 @@ const server=http.createServer(async(req,res)=>{
       const file=resolve(root,'.'+decodeURIComponent(path.endsWith('/')?path+'index.html':path))
       if(!file.startsWith(root+sep))reject(403,'เส้นทางไม่ถูกต้อง')
       const bytes=await readFile(file).catch(()=>reject(404,'ไม่พบไฟล์'))
-      res.writeHead(200,{'Content-Type':({'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.woff2':'font/woff2'})[extname(file)]||'application/octet-stream'});return res.end(bytes)
+      res.writeHead(200,{'Content-Type':({'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.woff2':'font/woff2','.mp3':'audio/mpeg','.zip':'application/zip'})[extname(file)]||'application/octet-stream'});return res.end(bytes)
     }
     if(req.method!=='POST'||!req.headers['content-type']?.startsWith('application/json'))reject(415,'ต้องส่งข้อมูล JSON')
     const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>32000)reject(413,'ข้อมูลยาวเกินกำหนด');chunks.push(chunk)}

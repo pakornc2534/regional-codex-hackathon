@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { Activity, BellRing, CalendarClock, Clock3, MessageCircle, Sunrise } from 'lucide-react';
+import { Activity, BellRing, CalendarClock, Clock3, Download, MessageCircle, Sunrise } from 'lucide-react';
 import { dotSummary } from '../shared/dot-monitor.mjs';
+import { DotAvatar } from './DotAvatar';
 import { baht, count, timestamp, type ShopState } from './model';
 import { workspaceNames } from './workspaces';
 import './dot-panel.css';
@@ -41,8 +42,20 @@ export function DotPanel({ state, stale, onWork }: {
     { area: 'supplies', title: 'วัสดุแพ็กที่ควรสั่งเพิ่ม', detail: 'เช็กจำนวนพร้อมใช้และเวลารอของ', value: snapshot.supplies, unit: 'รายการ' },
   ];
   const pending = work.filter(item => item.value > 0);
+  const salesMessage = snapshot.spike ? `ยอดซื้อพุ่งค่ะ มี ${count(snapshot.orders)} ออเดอร์ชำระแล้วในชั่วโมงล่าสุด` : 'ยอดซื้อยังอยู่ในช่วงปกติค่ะ';
+  const queueMessage = snapshot.overdue ? `ในคิวนี้มี ${count(snapshot.overdue)} ออเดอร์เลยกำหนด ควรจัดการก่อนค่ะ` : '';
+  const spokenSummary = stale ? 'ข้อมูลร้านยังไม่อัปเดตค่ะ ดอตจะรอข้อมูลใหม่ก่อนสรุปยอดซื้อและงานของร้าน' : [
+    salesMessage,
+    pending.length ? pending.map(item => `${item.title} ${count(item.value)} ${item.unit}`).join(' และ ') : 'ตอนนี้ไม่มีงานค้างในรายการที่ดอตติดตามค่ะ',
+    queueMessage,
+  ].filter(Boolean).join(' ');
 
   return <div className="dot-panel">
+    <DotAvatar message={spokenSummary} desktopAction={<details className="dot-desktop-setup">
+      <summary>ให้หุ่นเด้งเตือนบน Windows แม้ปิดเว็บร้าน</summary>
+      <p>ดาวน์โหลดแล้วแตกไฟล์ เปิด <b>Install.cmd</b> หนึ่งครั้งในบัญชี Windows ที่ต้องการรับเสียง หุ่นจะเริ่มพร้อมการเข้าสู่ระบบ และหยุดได้จากไอคอน Dot ใกล้นาฬิกา</p>
+      <a className="secondary" href="/downloads/raan-rao-dot-windows-1.zip" download><Download size={16} aria-hidden="true"/>ดาวน์โหลดหุ่น Dot สำหรับ Windows</a>
+    </details>}/>
     <div className="dot-links" aria-label="Dot ใน ChatGPT">
       <a className="primary" href="https://chatgpt.com/dots" target="_blank" rel="noopener noreferrer"><MessageCircle size={17} aria-hidden="true"/>เปิด Dot ของฉัน</a>
       <a className="secondary" href="https://chatgpt.com/scheduled" target="_blank" rel="noopener noreferrer"><CalendarClock size={17} aria-hidden="true"/>จัดการตารางใน ChatGPT</a>
