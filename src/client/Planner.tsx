@@ -101,9 +101,11 @@ export function Planner() {
     }
   }
   const target = (zone: Zone) => {
-    change({ planner: false, zone });
-    if (zone === "pick") change({ page: "shipping", zone: null });
-    if (zone === "pack") change({ page: "supplies", zone: null });
+    if (zone === "pack") {
+      change({ planner: false, page: "supplies", zone: null });
+      return;
+    }
+    change({ planner: false, zone: zone === "pick" ? "pack" : zone });
   };
   return (
     <div className="planner">

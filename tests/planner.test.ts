@@ -1,11 +1,38 @@
 import { expect, it } from "vitest";
-import { breakEven, calculatePlan } from "../src/shared/planner";
+import { calculatePlan } from "../src/shared/planner";
 import { seed } from "../src/server/simulator";
 it("S5 uses the discounted margin for both break-even targets", () => {
-  expect(breakEven(6400, 30000, 50000, 5, 0)).toEqual({
+  const shop = seed("discount-example");
+  const robot = shop.variants[0];
+  robot.price = 40000;
+  robot.cost = 25000;
+  for (const item of shop.supplies) item.cost = 0;
+  shop.supplies[4].cost = 1000;
+  const history = shop.orders.find(
+    (order) =>
+      order.variantId === robot.id &&
+      order.stage === "delivered" &&
+      order.channel === "online",
+  )!;
+  shop.orders = [{ ...history, qty: 140 }];
+  const plan = calculatePlan(shop, {
+    variantId: robot.id,
+    discount: 4000,
+    fee: 0.1,
+    capacity: 10,
+    conversion: 0.12,
+  });
+  expect(plan.m).toBe(6400);
+  expect(plan.baseline).toBe(50000);
+  expect(plan.targets).toEqual({
     recover: 5,
     total: 13,
     additional: 8,
+  });
+  expect(plan.targetChecks[1]).toMatchObject({ required: 13 });
+  expect(plan.targetChecks[1].resources[2]).toEqual({
+    available: 10,
+    short: 3,
   });
 });
 it("S6 and S8 allocate actual competing orders and retain uncapped demand", () => {

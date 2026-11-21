@@ -9,7 +9,7 @@ import { Manager } from "./ai-bridge";
 import { command } from "./operations";
 import { calculatePlan, planSchema } from "../shared/planner";
 import { rehearse, rehearsalSchema } from "../shared/rehearsal";
-import { orderView } from "./fulfillment";
+import { orderView, stockLedger, findItem } from "./fulfillment";
 import type { StreamEvent } from "../shared/model";
 const scope = z.object({ runId: z.string(), version: z.number().int() });
 const room = scope.extend({
@@ -100,6 +100,21 @@ export function api(store: Store) {
       (r) => r.id === c.req.param("key") && r.runId === c.req.query("runId"),
     );
     return c.json({ receipt: receipt ?? null });
+  });
+  app.get("/api/stock/:variantId/movements", (c) => {
+    const variant = findItem(store.shop.variants, c.req.param("variantId"));
+    const page = z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100000)
+      .default(1)
+      .parse(c.req.query("page"));
+    const rows = stockLedger(store.shop, variant.id);
+    return c.json({
+      total: rows.length,
+      rows: rows.slice((page - 1) * 30, page * 30),
+    });
   });
   app.get("/api/orders", (c) => {
     const q = z

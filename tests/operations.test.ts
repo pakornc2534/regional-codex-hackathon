@@ -13,7 +13,7 @@ import {
   risk,
   score,
 } from "../src/server/manager-controller";
-import { uid } from "../src/server/fulfillment";
+import { uid, stockLedger } from "../src/server/fulfillment";
 import { scopeContext, useTool } from "../src/server/manager-tools";
 import { rehearse } from "../src/shared/rehearsal";
 import type { Receipt, Action } from "../src/shared/model";
@@ -128,6 +128,14 @@ it("S4 executes the ROBOT sequence once, rejects conflicting keys and serializes
   });
   await twice({ type: "pos", target: "sim-v1", qty: 3 });
   expect(facts(st.shop).variants[0].available).toBe(402);
+  const robot = facts(st.shop).variants[0];
+  const movements = stockLedger(st.shop, robot.id);
+  expect(
+    robot.opening + movements.reduce((total, row) => total + row.physical, 0),
+  ).toBe(robot.physical);
+  expect(movements.reduce((total, row) => total + row.reserved, 0)).toBe(
+    robot.reserved,
+  );
   const free = facts(st.shop).supplies[1].free;
   const receipt = await twice({ type: "receive", target: "sim-m1", qty: 10 });
   expect(facts(st.shop).supplies[1].free).toBe(free + 10);

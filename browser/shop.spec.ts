@@ -68,8 +68,14 @@ test("S6 S8 S18 open real gallery popups and evaluate the same planner as the AP
   await expect(page.locator("main")).toContainText("คิวเดิมเกินกำลังแพ็ก 18 ชิ้น");
   await page.getByRole("button", { name: /กำลังแพ็ก.*คอขวด/ }).click();
   await expect(
-    page.getByRole("heading", { level: 1, name: "ส่งของ" }),
+    page.getByRole("dialog").getByRole("heading", { name: "โต๊ะแพ็ก" }),
   ).toBeVisible();
+  await expect(page.getByRole("tab", { name: "พัสดุที่กำลังแพ็ก" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await page.getByRole("tab", { name: "วัสดุแพ็ก" }).click();
+  await expect(page.getByRole("dialog").getByText("รับวัสดุเข้าร้าน")).toBeVisible();
 });
 test("S11 S12 S19 S20 S21 shared reset, offline manager, brief, rehearsal and guided steps", async ({
   page,
@@ -140,6 +146,13 @@ for (const width of [1440, 390, 360])
       await page.getByRole("textbox", { name: "ค้นหาสต็อก" }).fill("sonic");
       await page.getByRole("button", { name: /SONIC.*พวงกุญแจ/ }).click();
       await expect(page.getByRole("dialog")).toContainText("SONIC");
+      await page.getByRole("tab", { name: "การเคลื่อนไหว" }).click();
+      await expect(
+        page
+          .getByRole("dialog")
+          .getByText("ขนส่งรับแล้ว", { exact: true })
+          .first(),
+      ).toBeVisible();
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,

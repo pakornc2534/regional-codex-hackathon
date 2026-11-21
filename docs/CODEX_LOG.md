@@ -17,3 +17,9 @@ Separated customer messages from owner conversations. The UI links a verified ac
 ## M3 — campaign rehearsal
 
 Built day-by-day fractional baseline allocation, stock and material reservation, competing packing work, delayed settlements, cash expenses and preparation lead times. On the default October fork SONIC stock first limited sales on 8 October. The 10 October packing load reached 395 units against capacity of 120. Added controls for comparing both runs and attaching only calculated preparation IDs to a scoped manager recommendation. The selected combined option reduced simulated deadline misses from 275 to zero. Saving preserved the operational revision.
+
+## M4 — guided demo, deployment and evidence
+
+Exercised the seven-step coach on a disposable run, corrected navigation from an insufficient packing forecast into the packing station and verified both its orders and materials tabs. Reconciled the SKU movement history against its opening inventory and current reservations, including seed orders and subsequent transactions. Prepared the six-minute walkthrough, submission writeup and four screenshots. The final local checks passed TypeScript, the Vite build, 16 Vitest tests and seven Chromium tests. Domain and provider-protocol fixtures are identified in the [scenario record](VERIFICATION.md).
+
+The application container responded through the private proxy-to-app route. Chromium evaluated the deployed planner at 1440 and 390 px over that route. The Cloudflare DNS record resolved, but the public health and state requests still reached the default Nginx site. The site file is staged for installation by a proxy administrator. The container's live smoke check reported that the OpenAI key is missing.

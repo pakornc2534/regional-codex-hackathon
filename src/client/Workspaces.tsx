@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { ConversationLog } from "./ConversationLog";
 import { useEffect, useState } from "react";
 import {
@@ -43,7 +44,7 @@ import {
 } from "../shared/model";
 import { go, request, ui, useShop } from "./client";
 import type { ReadModel } from "../server/read-model";
-import type { orderView } from "../server/fulfillment";
+import type { orderView, stockLedger } from "../server/fulfillment";
 export const Hint = ({ children }: { children: React.ReactNode }) => (
   <Empty className="empty">
     <EmptyHeader>
@@ -442,6 +443,62 @@ export function Inbox() {
     </section>
   );
 }
+function InventoryHistory({ variantId }: { variantId: string }) {
+  const { s } = useShop();
+  const [page, setPage] = useState(1);
+  const history = useQuery({
+    queryKey: ["stock-history", s.runId, s.revision, variantId, page],
+    queryFn: () =>
+      request<{ total: number; rows: ReturnType<typeof stockLedger> }>(
+        "/api/stock/" +
+          encodeURIComponent(variantId) +
+          "/movements?page=" +
+          page,
+      ),
+  });
+  if (history.isError) return <p role="alert">{history.error.message}</p>;
+  if (!history.data) return <p role="status">กำลังโหลดประวัติสต็อก…</p>;
+  const { rows, total } = history.data;
+  if (!total) return <Hint>ยังไม่มีการเคลื่อนไหวของรุ่นนี้</Hint>;
+  const signed = (n: number) => (n > 0 ? "+" + n : n);
+  return (
+    <>
+      <DataTable
+        headers={["เวลา", "รายการ", "ของที่ร้าน ±", "กันไว้ ±"]}
+        rows={rows.map((row) => [
+          thTime(row.at),
+          <span title={row.orderId}>{row.label}</span>,
+          signed(row.physical),
+          signed(row.reserved),
+        ])}
+      />
+      {total > 30 && (
+        <div className="row">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 1}
+            onClick={() => setPage(page - 1)}
+          >
+            ก่อนหน้า
+          </Button>
+          <span>
+            หน้า {page} / {Math.ceil(total / 30)}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page * 30 >= total}
+            onClick={() => setPage(page + 1)}
+          >
+            ถัดไป
+          </Button>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function Product() {
   const { s, cmd } = useShop(),
     { selected, change } = ui(),
@@ -493,13 +550,7 @@ export function Product() {
           </dl>
         </TabsContent>
         <TabsContent value="history">
-          {s.movements
-            .filter((m) => m.variantId === v.id)
-            .map((m, i) => (
-              <p key={i}>
-                {thTime(m.at)} · {m.type} {m.qty} ชิ้น
-              </p>
-            ))}
+          <InventoryHistory key={s.runId + v.id} variantId={v.id} />
           <p>ยอดเปิดบัญชี {v.opening} ชิ้น</p>
         </TabsContent>
       </Tabs>
@@ -916,7 +967,26 @@ export function Brief() {
 export function ZoneBody({ zone }: { zone: Zone }) {
   const { s } = useShop();
   if (zone === "shelf") return <Product />;
-  if (zone === "pack") return <Supplies />;
+  if (zone === "pack")
+    return (
+      <>
+        <p>
+          คิวรอแพ็ก {s.queue} ชิ้น · กำลังแพ็กปกติ {s.defaults.capacity} ชิ้นต่อวัน
+        </p>
+        <Tabs defaultValue="orders">
+          <TabsList aria-label="งานที่โต๊ะแพ็ก">
+            <TabsTrigger value="orders">พัสดุที่กำลังแพ็ก</TabsTrigger>
+            <TabsTrigger value="materials">วัสดุแพ็ก</TabsTrigger>
+          </TabsList>
+          <TabsContent value="orders">
+            <Shipping initial="packing" />
+          </TabsContent>
+          <TabsContent value="materials">
+            <Supplies />
+          </TabsContent>
+        </Tabs>
+      </>
+    );
   if (["pick", "pickup", "carrier"].includes(zone))
     return (
       <Shipping
@@ -962,6 +1032,17 @@ export function ZoneBody({ zone }: { zone: Zone }) {
       <p>
         ผู้จัดการ {s.paused ? "พักงาน" : "รับงานได้"} · {s.policies.length} กฎที่บันทึก
       </p>
+      {s.policies.length > 0 && (
+        <DataTable
+          headers={["งานที่อนุญาต", "ขอบเขต", "ระดับ"]}
+          rows={s.policies.map((policy) => [
+            actions[policy.action],
+            s.cases.find((item) => item.target === policy.scope)?.title ??
+              policy.scope,
+            policy.level,
+          ])}
+        />
+      )}
       <h3>กิจกรรมล่าสุด</h3>
       {s.activity.length ? (
         s.activity

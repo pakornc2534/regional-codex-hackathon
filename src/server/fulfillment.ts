@@ -113,6 +113,57 @@ export function documents(s: Shop, ids: string[]) {
   orders.forEach((o) => (o.documents = true));
   return orders.map((o) => o.id);
 }
+export function stockLedger(shop: Shop, variantId: string) {
+  const rows: {
+    orderId: string;
+    at: string;
+    label: string;
+    physical: number;
+    reserved: number;
+  }[] = [];
+  for (const order of shop.orders) {
+    if (!order.paid || order.variantId !== variantId) continue;
+    for (const event of order.events) {
+      const ref = { orderId: order.id, at: event.at };
+      switch (event.stage) {
+        case "taken":
+          rows.push({
+            ...ref,
+            label: "ขายหน้าร้าน",
+            physical: -order.qty,
+            reserved: 0,
+          });
+          break;
+        case "waiting":
+          rows.push({
+            ...ref,
+            label: "กันให้คำสั่งซื้อ",
+            physical: 0,
+            reserved: order.qty,
+          });
+          break;
+        case "picked":
+          rows.push({
+            ...ref,
+            label: "ขนส่งรับแล้ว",
+            physical: -order.qty,
+            reserved: -order.qty,
+          });
+          break;
+        case "cancelled":
+          rows.push({
+            ...ref,
+            label: "คืนยอดที่กันไว้",
+            physical: 0,
+            reserved: -order.qty,
+          });
+          break;
+      }
+    }
+  }
+  return rows.reverse().sort((a, b) => b.at.localeCompare(a.at));
+}
+
 export function orderView(o: Order) {
   return {
     id: o.id,
