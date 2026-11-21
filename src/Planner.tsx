@@ -1,10 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bot, Calculator, ChevronDown, Package, RotateCcw, Save, Timer, TriangleAlert } from 'lucide-react';
+import { Bot, Calculator, Check, ChevronDown, Coins, Megaphone, Package, RotateCcw, Save, TicketPercent, Timer, TriangleAlert, Zap } from 'lucide-react';
 import { z } from 'zod';
 import { Dialog, Empty, Notice } from './components';
 import { bahtAmount } from '../shared/baht.mjs';
 import { count, evaluate, modes, problem, type Growth, type Mode, type PlanInputs, type ShopState, type Variant } from './model';
 import './planner.css';
+
+const planTools = [
+  { mode: 'ads', Icon: Megaphone },
+  { mode: 'flash', Icon: Zap },
+  { mode: 'marketing', Icon: TicketPercent },
+  { mode: 'investment', Icon: Coins },
+] as const;
+
+export function PlanTools({ current, disabled, onOpen }: { current?: Mode; disabled: boolean; onOpen: (mode: Mode) => void }) {
+  return <div className="plan-tools" role="group" aria-label="เลือกประเภทแผน">
+    <div className="plan-tools-grid">{planTools.map(({ mode, Icon }) =>
+      <button key={mode} type="button" className="plan-tool" data-mode={mode}
+        data-featured={mode === (current ?? 'ads')} aria-current={mode === current ? 'true' : undefined}
+        aria-haspopup="dialog" disabled={disabled} onClick={() => onOpen(mode)}>
+        <span className="plan-ticket">
+          <span className="plan-tool-icon" aria-hidden="true"><Icon size={23} strokeWidth={2}/></span>
+          <span className="plan-tool-label">{modes[mode]}</span>
+          {mode === current && <Check className="plan-tool-check" size={15} strokeWidth={3} aria-hidden="true"/>}
+        </span>
+      </button>
+    )}</div>
+  </div>;
+}
 
 type Field = [key: string, label: string, unit: string, min: number, step: number | 'any'];
 const shared = [

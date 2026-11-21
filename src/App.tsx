@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CalendarDays, PanelsTopLeft, BookOpen, Calculator, ChevronRight, Maximize2, Menu, Minimize2, RotateCcw, Settings2, X } from 'lucide-react';
+import { CalendarDays, PanelsTopLeft, BookOpen, ChevronRight, Maximize2, Menu, Minimize2, RotateCcw, Settings2, X } from 'lucide-react';
 import { ShopIcon } from './ShopIcon';
+import { SidebarDivider, SidebarToggle, useSidebarLayout } from './SidebarControls';
 import { CatalogFeature, OverviewMetrics, ProductFinder } from './Overview';
 import { DotEntry, DotPanel } from './DotPanel';
 import { ReadyManager } from './ReadyManager';
@@ -9,7 +10,7 @@ import { Briefs, Competitors, Memory, Sales, SalesChart, Settings } from './Busi
 import { Dialog, Empty, Notice } from './components';
 import { CaseDetail, CaseList, Inboxes, Manager } from './Manager';
 import { Fulfillment, ProductFacts, Stock, Supplies } from './Operations';
-import { PlanDialog, PlanResults, usePlanEvaluation } from './Planner';
+import { PlanDialog, PlanResults, PlanTools, usePlanEvaluation } from './Planner';
 import { baht, count, modes, post, problem, readStamp, readState, timestamp, type Command, type Mode, type PlanInputs, type ShopState, type Variant } from './model';
 import type { SceneZone } from './scene/ShopScene';
 import { navigation, stations, workspaceNames, type Page } from './workspaces';
@@ -120,6 +121,7 @@ export default function App() {
   const liveManager = Boolean(state?.liveManagerAvailable);
   const mobileTabs = useRef<HTMLDivElement>(null);
   const hasWorkspace = Boolean(state);
+  const panels = useSidebarLayout(hasWorkspace);
   useLayoutEffect(() => {
     const tabs = mobileTabs.current;
     const shell = tabs?.parentElement;
@@ -244,7 +246,10 @@ export default function App() {
     setResearch(!!options.research);
     setDiscussPlan(!!options.plan);
     setDraft(question);
-    if (!liveManager && window.matchMedia('(max-width: 949px)').matches) setMobile('manager');
+    if (!liveManager) {
+      if (window.matchMedia('(max-width: 949px)').matches) setMobile('manager');
+      else panels.manager.expand();
+    }
     setLayer(liveManager ? {kind: 'codex'} : undefined);
     requestAnimationFrame(() => document.getElementById('manager-draft')?.focus());
     setFullscreen(false);
@@ -313,10 +318,8 @@ export default function App() {
   const sceneVariants = variants.map(item => ({
     id: item.id, name: [item.productName, item.name].filter(Boolean).join(' · '), sku: item.sellerSku, category: item.category, available: item.available,
   }));
-  const planButtons = <div className="choice-row plan-buttons">{Object.entries(modes).map(([key, label]) =>
-    <button key={key} className={key === 'ads' ? 'primary' : 'secondary'} disabled={!selected} onClick={() => {
-      if (key === 'ads' || key === 'flash' || key === 'marketing' || key === 'investment') setMode(key);
-    }}>{key === 'ads' && <Calculator size={15}/>} {label}</button>)}</div>;
+  const planButtons = <PlanTools disabled={!selected} onOpen={setMode}
+    current={inputs && inputs.variantId === selected?.id ? inputs.mode : undefined}/>;
   const productSelector = <ProductSelector state={state} variants={variants} selected={selected} onSelect={setSelectedId}>
     {page === 'scene' && selected && <div className="choice-row"><button className="secondary" onClick={() => open('product', selected.id)}>เปิดรายละเอียด {selected.sellerSku}</button></div>}
     {planButtons}
@@ -389,15 +392,18 @@ export default function App() {
     reconnect={() => void invoke('/api/reconnect', {}, 'ตรวจการเชื่อมต่อแล้ว')} action={action} busy={unavailable}/>;
 
   const showsSelectedProduct = page === 'overview' || page === 'plan' || page === 'scene';
-  return <div className={liveManager ? 'app-shell with-live-manager' : 'app-shell'}>
+  return <div className={liveManager ? 'app-shell with-live-manager' : 'app-shell'} ref={panels.shell} style={panels.style}>
     <header className="mobile-bar"><button className="icon-btn" aria-label="เปิดเมนูร้าน" onClick={() => setMobile(mobile === 'menu' ? undefined : 'menu')}><Menu size={21}/></button><button className="mobile-brand" onClick={() => go('overview')}><ShopIcon name="storemark" size={29}/> ร้านเรา</button>{!liveManager && <button className="icon-btn" aria-label="เปิดผู้จัดการ AI" onClick={() => setMobile(mobile === 'manager' ? undefined : 'manager')}><ShopIcon name="manager" size={25}/></button>}</header>
     {mobile && <button className="mobile-scrim" aria-label="ปิดแผง" onClick={() => setMobile(undefined)}/>}
-    <aside className={mobile === 'menu' ? 'sidebar open' : 'sidebar'} role={mobile === 'menu' ? 'dialog' : undefined} aria-modal={mobile === 'menu' || undefined} aria-label="เมนูร้าน">
-      <button className="brand" onClick={() => go('overview')}><span className="brand-glyph"><ShopIcon name="storemark" size={43}/></span><span><strong>ร้านเรา</strong></span></button>
-      <button className="shop-card" onClick={() => go('settings')}><span className="shop-avatar"><ShopIcon name="stock" size={26}/></span><span><strong>{state.shop.name}</strong><small>ร้านของสะสมจำลอง</small></span><Settings2 size={15}/></button>
-      <nav aria-label="เมนูร้าน">{navigation.map(group => <div className="nav-group" key={group.group}><span>{group.group}</span>{group.items.map(id => <button key={id} className={page === id ? 'nav-item active' : 'nav-item'} aria-current={page === id ? 'page' : undefined} onClick={() => go(id)}><ShopIcon name={id} size={21}/><span>{workspaceNames[id]}</span>{id === 'cases' && awaiting > 0 && <small>{awaiting}</small>}</button>)}</div>)}</nav>
-      <a className="sidebar-bottom" href={import.meta.env.DEV ? '/docs/guide/' : '/guide/'} target="_blank" rel="noopener noreferrer"><BookOpen size={17}/> คู่มือเดโม</a>
-    </aside>
+    <div className="nav-slot" data-collapsed={panels.menu.collapsed}>
+      <aside id="shop-menu" className={mobile === 'menu' ? 'sidebar open' : 'sidebar'} role={mobile === 'menu' ? 'dialog' : undefined} aria-modal={mobile === 'menu' || undefined} aria-label="เมนูร้าน">
+        <div className="nav-heading"><button className="brand" aria-label="ร้านเรา" title="ร้านเรา" onClick={() => go('overview')}><span className="brand-glyph"><ShopIcon name="storemark" size={43}/></span><span><strong>ร้านเรา</strong></span></button><SidebarToggle panel={panels.menu}/></div>
+        <button className="shop-card" title={state.shop.name} aria-label={state.shop.name + ' ร้านของสะสมจำลอง'} onClick={() => go('settings')}><span className="shop-avatar"><ShopIcon name="stock" size={26}/></span><span><strong>{state.shop.name}</strong><small>ร้านของสะสมจำลอง</small></span><Settings2 size={15}/></button>
+        <nav aria-label="เมนูร้าน">{navigation.map(group => <div className="nav-group" key={group.group}><span>{group.group}</span>{group.items.map(id => <button key={id} title={workspaceNames[id]} aria-label={workspaceNames[id] + (id === 'cases' && awaiting > 0 ? ' ' + awaiting : '')} className={page === id ? 'nav-item active' : 'nav-item'} aria-current={page === id ? 'page' : undefined} onClick={() => go(id)}><ShopIcon name={id} size={21}/><span>{workspaceNames[id]}</span>{id === 'cases' && awaiting > 0 && <small>{awaiting}</small>}</button>)}</div>)}</nav>
+        <a className="sidebar-bottom" title="คู่มือเดโม" aria-label="คู่มือเดโม" href={import.meta.env.DEV ? '/docs/guide/' : '/guide/'} target="_blank" rel="noopener noreferrer"><BookOpen size={17}/><span>คู่มือเดโม</span></a>
+      </aside>
+      <SidebarDivider panel={panels.menu}/>
+    </div>
     <main className="workspace" inert={mobile ? true : undefined}>
       <div className="workspace-top"><span><ShopIcon name="storemark" size={19}/> {state.shop.name} <ChevronRight size={13}/> {workspaceNames[page]}</span><time dateTime={state.clock} title="เวลาร้านจำลอง"><CalendarDays size={15}/> {timestamp(state.clock)}</time></div>
       <div className="page-heading"><div><h1>{workspaceNames[page]}</h1>{page !== 'overview' && <p>{descriptions[page]}</p>}</div>{page === 'overview' && <button className="case-jump" onClick={() => go('cases')}><ShopIcon name="cases" size={19}/> {workspaceNames.cases} <b>{count(awaiting)}</b></button>}</div>
@@ -413,8 +419,9 @@ export default function App() {
       <button aria-current={page === 'cases' ? 'page' : undefined} onClick={() => go('cases')}><ShopIcon name="cases"/>{workspaceNames.cases}</button>
       {!liveManager && <button onClick={() => setMobile('manager')}><ShopIcon name="manager"/>ผู้จัดการ AI</button>}
     </div>
-    {!liveManager && <div role={mobile === 'manager' ? 'dialog' : undefined} aria-modal={mobile === 'manager' || undefined} aria-label="ผู้จัดการ AI" className={mobile === 'manager' ? 'manager-slot open' : 'manager-slot'}>{mobile === 'manager' && <button className="manager-close icon-btn" aria-label="ปิดผู้จัดการ" onClick={() => setMobile(undefined)}><X size={18}/></button>}
-      {codexDesk}
+    {!liveManager && <div data-collapsed={panels.manager.collapsed} role={mobile === 'manager' ? 'dialog' : undefined} aria-modal={mobile === 'manager' || undefined} aria-label="ผู้จัดการ AI" className={mobile === 'manager' ? 'manager-slot open' : 'manager-slot'}>{mobile === 'manager' && <button className="manager-close icon-btn" aria-label="ปิดผู้จัดการ" onClick={() => setMobile(undefined)}><X size={18}/></button>}
+      <SidebarToggle panel={panels.manager}/><SidebarDivider panel={panels.manager}/>
+      <div id="shop-manager" className="manager-content">{codexDesk}</div>
     </div>}
     {liveManager && layer?.kind === 'codex' && <Dialog title="งานและประวัติ Codex" onClose={closeCodex}>
       {commandError && <Notice error>{commandError}</Notice>}
