@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CalendarDays, PanelsTopLeft, BookOpen, Calculator, ChevronRight, Maximize2, Menu, Minimize2, RotateCcw, Settings2, X } from 'lucide-react';
+import { CalendarDays, PanelsTopLeft, BookOpen, ChevronRight, Maximize2, Menu, Minimize2, RotateCcw, Settings2, X } from 'lucide-react';
 import { ShopIcon } from './ShopIcon';
 import { SidebarDivider, SidebarToggle, useSidebarLayout } from './SidebarControls';
 import { CatalogFeature, OverviewMetrics, ProductFinder } from './Overview';
@@ -10,7 +10,7 @@ import { Briefs, Competitors, Memory, Sales, SalesChart, Settings } from './Busi
 import { Dialog, Empty, Notice } from './components';
 import { CaseDetail, CaseList, Inboxes, Manager } from './Manager';
 import { Fulfillment, ProductFacts, Stock, Supplies } from './Operations';
-import { PlanDialog, PlanResults, usePlanEvaluation } from './Planner';
+import { PlanDialog, PlanResults, PlanTools, usePlanEvaluation } from './Planner';
 import { baht, count, modes, post, problem, readStamp, readState, timestamp, type Command, type Mode, type PlanInputs, type ShopState, type Variant } from './model';
 import type { SceneZone } from './scene/ShopScene';
 import { navigation, stations, workspaceNames, type Page } from './workspaces';
@@ -310,10 +310,8 @@ export default function App() {
   const sceneVariants = variants.map(item => ({
     id: item.id, name: [item.productName, item.name].filter(Boolean).join(' · '), sku: item.sellerSku, category: item.category, available: item.available,
   }));
-  const planButtons = <div className="choice-row plan-buttons">{Object.entries(modes).map(([key, label]) =>
-    <button key={key} className={key === 'ads' ? 'primary' : 'secondary'} disabled={!selected} onClick={() => {
-      if (key === 'ads' || key === 'flash' || key === 'marketing' || key === 'investment') setMode(key);
-    }}>{key === 'ads' && <Calculator size={15}/>} {label}</button>)}</div>;
+  const planButtons = <PlanTools disabled={!selected} onOpen={setMode}
+    current={inputs && inputs.variantId === selected?.id ? inputs.mode : undefined}/>;
   const productSelector = <ProductSelector state={state} variants={variants} selected={selected} onSelect={setSelectedId}>
     {page === 'scene' && selected && <div className="choice-row"><button className="secondary" onClick={() => open('product', selected.id)}>เปิดรายละเอียด {selected.sellerSku}</button></div>}
     {planButtons}

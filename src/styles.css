@@ -179,7 +179,6 @@ small { font-size: 11px; line-height: 1.4; }
 .choice-row > button.active:not(.primary):not(.secondary) { border-color: var(--green); color: var(--green); background: var(--soft); }
 .choice-row > button:hover:not(.primary):not(.secondary):not(.text-btn) { background: var(--soft); }
 .choice-row small { color: var(--muted); }
-.plan-buttons { margin-top: 10px; }
 .badge { display: inline-flex; padding: 3px 6px; border-radius: 6px; white-space: nowrap; font-size: 11px; font-weight: 600; align-items: center; }
 .badge.green { background: var(--soft); color: var(--green); }
 .badge.warm { background: var(--warm); color: var(--warm-ink); }
