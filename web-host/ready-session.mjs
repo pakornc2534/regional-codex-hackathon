@@ -92,8 +92,8 @@ async function reserve(env, runId) {
 function sessionConfig(env, shop) {
   const names = (shop.products ?? []).slice(0, 40).map(product => String(product.name ?? '').slice(0, 70)).filter(Boolean)
   const transcription = {
-    model: 'gpt-4o-mini-transcribe', language: 'th',
-    prompt: 'บทสนทนาภาษาไทยเรื่องราคา สต็อก และคู่แข่ง ชื่อสินค้าในแค็ตตาล็อกอาจออกเสียงแบบไทย ให้สะกดชื่อตามที่ได้ยิน เช่น ' + names.join(' / ').slice(0, 900)
+    model: 'gpt-4o-mini-transcribe',
+    prompt: 'Transcribe the speaker in the original language (Thai, English or Mandarin Chinese). Catalog names: ' + names.join(' / ').slice(0, 900)
   }
   return {
     type: 'realtime', model: env.OPENAI_REALTIME_MODEL || 'gpt-realtime-2.1',

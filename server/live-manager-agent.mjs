@@ -83,7 +83,7 @@ export default defineAgent({
           model: process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime-2.1',
           voice: process.env.OPENAI_REALTIME_VOICE || 'marin',
           modalities: ['audio'],
-          inputAudioTranscription: { model: 'gpt-4o-mini-transcribe', language: 'th' }
+          inputAudioTranscription: { model: 'gpt-4o-mini-transcribe' }
         })
       })
 
