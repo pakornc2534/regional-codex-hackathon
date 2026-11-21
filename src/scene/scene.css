@@ -1,0 +1,192 @@
+/* Hallmark · v2.0 · custom live diorama · signature: working collectible gallery with resin, brass, and terracotta */
+.diorama {
+  --diorama-backdrop: #1d2b34;
+  --diorama-halo: #36444b;
+  --diorama-ink: #f6edd9;
+  --diorama-ink-soft: #ded3bb;
+  --diorama-label: #20322ef2;
+  --diorama-boundary: #d9bb8061;
+  --diorama-hot: #f0b870;
+  --diorama-hot-ring: #f0b8703b;
+  --diorama-hot-shadow: #17252373;
+  --diorama-font: inherit;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  background: radial-gradient(ellipse at 51% 49%, var(--diorama-halo), var(--diorama-backdrop) 74%);
+  color: var(--diorama-ink);
+  font-family: var(--diorama-font);
+  overflow: clip;
+}
+
+.diorama canvas {
+  display: block;
+  cursor: grab;
+  touch-action: none;
+}
+
+.diorama canvas:active {
+  cursor: grabbing;
+}
+
+.diorama[data-hovering="true"] canvas {
+  cursor: pointer;
+}
+
+.diorama-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.diorama-marker-position {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+}
+
+.diorama-marker-position[data-hot="true"] {
+  z-index: 1;
+}
+
+.diorama-marker {
+  position: relative;
+  width: max-content;
+}
+
+.diorama-dot,
+.diorama-fallback button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid var(--diorama-boundary);
+  border-radius: 5px;
+  color: var(--diorama-ink);
+  background: var(--diorama-label);
+  box-shadow: 0 2px 12px var(--diorama-hot-shadow);
+  white-space: nowrap;
+  font-family: var(--diorama-font);
+  font-size: 10px;
+  font-weight: 590;
+  line-height: 1.35;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.diorama-dot:hover,
+.diorama-fallback button:hover,
+.diorama-fallback button[aria-pressed="true"] {
+  border-color: var(--diorama-hot);
+}
+
+.diorama-dot:focus-visible,
+.diorama-fallback button:focus-visible {
+  outline: 2px solid var(--diorama-hot);
+  outline-offset: 3px;
+}
+
+.diorama-dot[aria-disabled="true"],
+.diorama-fallback button[aria-disabled="true"] {
+  pointer-events: none;
+}
+
+.diorama-dot__lamp {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--diorama-hot);
+  box-shadow: 0 0 0 2px var(--diorama-hot-ring);
+}
+
+.diorama-dot--shelf {
+  width: 13px;
+  height: 13px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.diorama-dot--shelf .diorama-dot__lamp {
+  width: 4px;
+  height: 4px;
+  box-shadow: none;
+}
+
+.diorama-hover {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 3px;
+  padding: 8px 11px;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 164px;
+  border: 1px solid var(--diorama-boundary);
+  border-radius: 7px;
+  color: var(--diorama-ink-soft);
+  background: var(--diorama-label);
+  box-shadow: 0 3px 16px var(--diorama-hot-shadow);
+  font-size: 11px;
+  line-height: 1.45;
+  pointer-events: none;
+}
+
+.diorama-hover strong {
+  color: var(--diorama-ink);
+}
+
+.diorama-fallback,
+.diorama-loading {
+  padding: 24px;
+}
+
+.diorama-fallback p {
+  font-size: 13px;
+  color: var(--diorama-ink-soft);
+}
+
+.diorama-fallback__zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block: 12px;
+}
+
+@media (max-width: 600px) {
+  .diorama-dot {
+    min-height: 17px;
+    gap: 4px;
+    padding: 2px 5px;
+    font-size: 8px;
+  }
+
+  .diorama-dot--shelf {
+    width: 12px;
+    height: 12px;
+    min-height: 12px;
+    padding: 0;
+  }
+
+  .diorama-dot__lamp {
+    width: 4px;
+    height: 4px;
+  }
+
+  .diorama-dot--shelf .diorama-dot__lamp {
+    width: 3px;
+    height: 3px;
+  }
+
+  .diorama-hover {
+    max-width: 105px;
+    font-size: 9px;
+  }
+}

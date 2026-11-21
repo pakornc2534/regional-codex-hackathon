@@ -1,0 +1,32 @@
+import {chromium} from '@playwright/test'
+import {mkdir,writeFile,readFile} from 'node:fs/promises'
+const folder='docs/guide'
+await mkdir(folder,{recursive:true})
+const slides=[
+ ['ร้านเรา','ผู้จัดการร้านของสะสม','เปิดร้านจำลอง bankzar เลือกสินค้าบนชั้น แล้วดูว่าการตัดสินใจครั้งเดียวกระทบงานส่วนไหนบ้าง','หน้าร้าน','9 รายการ','สินค้า','13 แบบ','ช่องทาง','ออนไลน์ + หน้าร้าน'],
+ ['ซื้อแอดหนึ่งครั้ง งานเพิ่มทั้งร้าน','จากยอดขายสู่โต๊ะแพ็ก','คำสั่งซื้อเพิ่มทำให้สต็อกที่ขายได้ลดลง กล่องถูกกันไว้ และทีมแพ็กมีเวลารับงานใหม่น้อยลง','ยิงแอด','เพิ่มความต้องการ','รับออเดอร์','กันสินค้าและกล่อง','แพ็กส่ง','รอขนส่งรับ'],
+ ['ร้านเดียว ข้อมูลชุดเดียว','องค์ประกอบของระบบ','หน้าเว็บอ่านภาพร้านล่าสุดจากเครื่องเจ้าของ เครื่องนี้เก็บรายการขายเต็มชุดและคำนวณทุกแผนจากข้อมูลเดียวกัน','หน้าเว็บ','แดชบอร์ดและร้าน 3D','เกตเวย์','คิวและภาพร้านล่าสุด','เครื่องเจ้าของ','ร้านจำลองและ Codex'],
+ ['ผู้จัดการเสนอ เจ้าของเลือก','วงจรการทำงาน','เปิดเคส Sonic เพื่อดูสต็อกและร่างคำตอบ ตรวจข้อความแล้วเลือกส่ง จากนั้นตรวจแชทลูกค้าและใบยืนยัน','อ่านเคส','สต็อกและคำถาม','เลือกคำตอบ','อนุมัติครั้งเดียว','ตรวจผล','อ่านข้อความในห้องลูกค้า'],
+ ['แอด 300 บาท ต้องขายเพิ่มกี่ชิ้น','โมเดลหุ่นยนต์ ROBOT','ภายใต้สมมติฐานเริ่มต้น เงินเหลือหลังต้นทุนที่ระบุคือ 179.35 บาทต่อชิ้น ขายเพิ่ม 2 ชิ้นจะเหลือ 58.70 บาทหลังจ่ายค่าแอด','ขายตามปกติ','17 ชิ้น','เป้ารวม','19 ชิ้น','กำลังแพ็กที่เหลือ','25 ชิ้น'],
+ ['หนึ่งพัสดุอาจมีหลายชิ้น','สต็อกและวัสดุแพ็ก','ตัวอย่างออเดอร์ออนไลน์ ROBOT จำนวน 2 ชิ้น ระบบกันของ 2 ชิ้น การยืนยันแพ็กใช้วัสดุ 2 ชุด เมื่อขนส่งรับจึงตัดสต็อกจริง','ก่อนรับออเดอร์','ขายได้ 407','หลังรับออเดอร์','ขายได้ 405','หลังขนส่งรับ','ยังขายได้ 405'],
+ ['เดินดูงานผ่านร้าน 3D','แกลเลอรีของสะสม','เลือกสินค้า ชั้นวาง โต๊ะแพ็ก หรือจุดรับพัสดุเพื่อเปิดข้อมูลงานจริงในร้านจำลอง ใช้มุมมอง 2D ได้บนหน้าจอเล็ก','ชั้นวาง','เลือกสินค้า','โต๊ะแพ็ก','ดูคิวและวัสดุ','จุดรับพัสดุ','ตรวจงานพร้อมส่ง'],
+ ['สิทธิ์ของผู้จัดการ','การควบคุมของเจ้าของร้าน','เจ้าของเลือกการกระทำและกำหนดกฎสำหรับครั้งถัดไปแยกกัน ตรวจรอบร้าน เวอร์ชันและเป้าหมายก่อนเปลี่ยนข้อมูล','อ่านและคำนวณ','ทำได้ทันที','ส่งข้อความ','ต้องมีสิทธิ์ตรงเคส','ยืนยันแพ็ก','เจ้าของยืนยัน'],
+ ['ทดลองกับร้านจำลอง','ขอบเขตเดโม','ผู้เข้าชมใช้ร้านและประวัติสนทนาร่วมกัน ใช้เฉพาะข้อมูลสมมติ การรับคำสั่งจากเว็บและการตอบของ AI ต้องอาศัยเครื่องเจ้าของที่ออนไลน์','ข้อมูลเริ่มต้น','สร้างซ้ำได้','การเชื่อมต่อ','ดูสถานะในแอป','ขั้นถัดไป','ทดสอบกับร้านจริงเมื่อได้รับสิทธิ์']
+]
+const flows=[
+ ['ระบบร้านจำลอง','เว็บ → เกตเวย์ → เครื่องเจ้าของ','เว็บขอข้อมูลหรือส่งคำสั่งจากต้นทางเดียวกัน เกตเวย์จัดคิว เครื่องเจ้าของอ่านคิวผ่าน HTTPS และส่งผลที่ตรวจสอบแล้วกลับ','หน้าเว็บ','เลือกงาน','คิวบนคลาวด์','รอเครื่องเจ้าของ','เครื่องเจ้าของ','ตรวจและส่งผล'],
+ ['หนึ่งคำตอบ หนึ่งการอนุมัติ','AI → เจ้าของ → ห้องลูกค้า','ผู้จัดการอ่านบริบทแล้วเสนอข้อความ เจ้าของเลือกตัวเลือกที่ตรงกับเคส ระบบอ่านผลกลับจากห้องของลูกค้าคนนั้น','ข้อเสนอ','ผูกกับเวอร์ชัน','ตรวจสิทธิ์','ตรวจเคสและเป้าหมาย','ยืนยันผล','ดูข้อความที่ส่ง'],
+ ['ผลต่อเนื่องจากการยิงแอด','ยอด → สต็อก → เงินและเวลา','ก่อนซื้อแอด ตรวจเป้าขายเพิ่มพร้อมกับสินค้า วัสดุ แรงแพ็ก และวันที่เงินจะเข้าร้าน','คาดการณ์','ยอดขายเพิ่ม','ตรวจข้อจำกัด','ของ กล่อง เวลา','ตัดสินใจ','เงินเหลือและเงินสด'],
+ ['จากรับออเดอร์จนส่งของ','กันของ → แพ็ก → ขนส่งรับ','การเตรียมเอกสารยังไม่เปลี่ยนตำแหน่งพัสดุ คนแพ็กยืนยันการใช้วัสดุ เมื่อรถรับจึง ลดจำนวนจริงและจำนวนที่กันไว้พร้อมกัน','รับออเดอร์','กันสินค้าที่ยังอยู่ร้าน','ยืนยันแพ็ก','ใช้วัสดุตามจำนวนชิ้น','ขนส่งรับ','ตัดสต็อกจริง']
+]
+const css=`*{box-sizing:border-box}html,body{margin:0}body{background:#eeeae1;color:#183d35;font:22px -apple-system,system-ui,sans-serif}main{max-width:1120px;margin:auto}section{position:relative;max-width:1120px;aspect-ratio:16/9;overflow:hidden;background:#faf8f0;padding:52px 60px;margin:26px auto;border-top:11px solid #245b4d}header{display:flex;justify-content:space-between;align-items:center;color:#486759;font-size:20px}.brand{font-weight:750}h1{font-size:58px;line-height:1.18;margin:48px 0 18px;letter-spacing:-1.8px;max-width:94%}p{max-width:890px;font-size:24px;line-height:1.6;margin:0;color:#435d53}.track{position:absolute;bottom:50px;left:60px;right:60px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.station{padding:21px;background:#e6eadf;border-radius:5px;border-top:4px solid #7c9274}.station:last-child{background:#225a49;color:#fff;border-color:#c39c65}.station small,.station strong{display:block}.station strong{font-size:29px;margin-top:7px}.photo{position:absolute;right:60px;bottom:48px;width:48%;height:55%;object-fit:cover;border-radius:6px}.illustrated h1,.illustrated p{max-width:45%}.illustrated p{font-size:21px}.illustrated .track{display:none}@media(max-width:700px){section{padding:24px;aspect-ratio:auto;min-height:430px}h1{font-size:34px;margin:28px 0 16px}p{font-size:17px}.track{position:static;margin-top:28px;grid-template-columns:1fr}.station{padding:8px}.station strong{font-size:18px}.photo{position:static;width:100%;height:auto;margin-top:20px}.illustrated h1,.illustrated p{max-width:100%}} `
+const scene=await readFile('docs/screenshots/shop-3d.png').then(x=>'data:image/png;base64,'+x.toString('base64')).catch(()=>null)
+function card(row,i,group){const [title,topic,desc,...facts]=row,photo=group==='slides' && i===6 && scene;return '<section id="'+group+'-'+(i+1)+'" class="'+(photo?'illustrated':'')+'"><header><span class="brand">ร้านเรา</span><span>'+topic+'</span></header><h1>'+title+'</h1><p>'+desc+'</p><div class="track">'+[0,2,4].map(k=>'<div class="station"><small>'+facts[k]+'</small><strong>'+facts[k+1]+'</strong></div>').join('')+'</div>'+(photo?'<img class="photo" src="'+photo+'" alt="ร้าน 3D จำลอง">':'')+'</section>'}
+const html='<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ร้านเรา · คู่มือเดโม</title><style>'+css+'</style><main>'+slides.map((r,i)=>card(r,i,'slides')).join('')+flows.map((r,i)=>card(r,i,'flow')).join('')+'</main></html>'
+await writeFile(folder+'/index.html',html)
+const browser=await chromium.launch({channel:'chrome',headless:true})
+try{const page=await browser.newPage({viewport:{width:1200,height:800},deviceScaleFactor:1})
+await page.setContent(html);await page.evaluate(()=>document.fonts.ready)
+for(const group of ['slides','flow']){const count=group==='slides'?9:4
+for(let i=1;i<=count;i++) await page.locator('#'+group+'-'+i).screenshot({path:folder+'/'+group+'-'+i+'.png'})}
+}finally{await browser.close()}
