@@ -190,7 +190,9 @@ export function ReadyManager({ shopName, shopView, hosted, snapshotSavedAt, hidd
           },
           ended: stopCall,
           notice: error => setCall({ phase: 'connected', error }),
-          micPaused: setMicPaused, audioBlocked: setAudioBlocked,
+          interruptAvatar: () => current.avatar?.interrupt(),
+          resumeAvatar: () => current.avatar?.resumeAudio(),
+          audioBlocked: setAudioBlocked,
           avatar: (session, enabled) => {
             if (!enabled || !video.current || !current.avatarAudio) {
               setAvatarMode('audio');
@@ -205,7 +207,7 @@ export function ReadyManager({ shopName, shopView, hosted, snapshotSavedAt, hidd
               setAvatarAudioBlocked(stage === 'ready' && !ownsAudio);
               audio.muted = ownsAudio;
               if (!ownsAudio) void cloud.playAudio();
-            }, () => cloud.notePlayback());
+            });
             void current.avatar.start({ session });
           },
           track: track => current.avatar?.attachTrack(track),

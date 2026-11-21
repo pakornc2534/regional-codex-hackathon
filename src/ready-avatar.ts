@@ -27,7 +27,7 @@ export function createBrowserAvatar(
   video: HTMLVideoElement,
   context: AudioContext,
   notify: (stage: BrowserAvatarStage, ownsAudio: boolean) => void,
-  notePlayback: () => void,
+  notePlayback?: () => void,
 ) {
   const controller = new AbortController();
   let client: AnamClient | undefined;
@@ -38,6 +38,7 @@ export function createBrowserAvatar(
   let outputMeter: AudioWorkletNode | undefined;
   let connected = false;
   let ownsAudio = false;
+  let acceptingAudio = true;
   let inSequence = false;
   let silentFrames = 0;
   let preroll: ArrayBuffer[] = [];
@@ -66,11 +67,25 @@ export function createBrowserAvatar(
     notify('audio', false);
   }
 
+  function interrupt() {
+    if (!acceptingAudio || controller.signal.aborted) return;
+    acceptingAudio = false;
+    preroll = [];
+    try {
+      if (inSequence) input?.endSequence();
+      client?.interruptPersona();
+    } catch {
+      // Signaling can still be connecting when the first question starts.
+    } finally {
+      inSequence = false;
+    }
+  }
+
   function forward({ buffer, peak }: AudioFrame) {
-    if (!input || controller.signal.aborted) return;
+    if (!acceptingAudio || !input || controller.signal.aborted) return;
     try {
       if (peak >= 0.007) {
-        notePlayback();
+        notePlayback?.();
         if (!inSequence) {
           for (const frame of preroll) input.sendAudioChunk(audioChunk(frame));
           preroll = [];
@@ -186,7 +201,7 @@ export function createBrowserAvatar(
       }
       outputMeter = new AudioWorkletNode(context, 'ready-avatar-pcm');
       outputMeter.port.onmessage = ({data}: MessageEvent<AudioFrame>) => {
-        if (!video.muted && !video.paused && data.peak >= 0.007) notePlayback();
+        if (!video.muted && !video.paused && data.peak >= 0.007) notePlayback?.();
       };
       context.createMediaStreamSource(new MediaStream([audioTrack])).connect(outputMeter).connect(silent);
       if (controller.signal.aborted) return;
@@ -210,6 +225,8 @@ export function createBrowserAvatar(
       attach();
     },
     enableAudio,
+    interrupt,
+    resumeAudio: () => { acceptingAudio = true; },
     start,
     close,
   };

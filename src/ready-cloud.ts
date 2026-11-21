@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { createReadyMicGate } from './ready-mic-gate';
 import type { Page } from './workspaces';
 import type { PlanInputs } from './model';
 
@@ -35,7 +34,8 @@ type CloudOptions = {
   connected: () => void;
   ended: (message: string) => void;
   notice: (message: string) => void;
-  micPaused: (paused: boolean) => void;
+  interruptAvatar: () => void;
+  resumeAvatar: () => void;
   audioBlocked: (blocked: boolean) => void;
   avatar: (session: string, enabled: boolean) => void;
   track: (track: MediaStreamTrack) => void;
@@ -49,17 +49,11 @@ export function createCloudCall(options: CloudOptions) {
   const partials = new Map<string, string>();
   let session: string | undefined;
   let mic: MediaStreamTrack | undefined;
-  let wanted = false;
   let micGeneration = 0;
-  let responding = false;
-  let playing = false;
+  let turn = 0;
   let closed = false;
   let leaseTimer: number | undefined;
   let pendingTranscription: { id: string; ready: Promise<void>; finish: () => void } | undefined;
-  const gate = createReadyMicGate(paused => {
-    if (mic) mic.enabled = wanted && !paused;
-    options.micPaused(paused);
-  });
 
   function endRemote(id: string) {
     void fetch('/api/ready/end', {
@@ -74,7 +68,6 @@ export function createCloudCall(options: CloudOptions) {
     options.signal.removeEventListener('abort', close);
     window.clearTimeout(leaseTimer);
     pendingTranscription?.finish();
-    gate.close();
     mic?.stop();
     events.close();
     peer.close();
@@ -90,13 +83,7 @@ export function createCloudCall(options: CloudOptions) {
     if (questions.length > 5) questions.shift();
   }
   function send(event: object) { events.send(JSON.stringify(event)); }
-  function requestResponse() {
-    responding = true;
-    gate.agentBusy(true);
-    send({ type: 'response.create' });
-  }
   async function setMic(enable: boolean) {
-    wanted = enable;
     const generation = ++micGeneration;
     if (!enable) {
       mic?.stop();
@@ -110,7 +97,6 @@ export function createCloudCall(options: CloudOptions) {
     const [track] = stream.getAudioTracks();
     if (!track) throw Error('ไม่พบไมโครโฟน');
     if (closed || generation !== micGeneration) { track.stop(); return; }
-    track.enabled = !gate.isPaused();
     mic = track;
     try { await sender.replaceTrack(track); }
     catch (error) { track.stop(); if (mic === track) mic = undefined; throw error; }
@@ -172,27 +158,28 @@ export function createCloudCall(options: CloudOptions) {
       return valid.success ? [valid.data] : [];
     }) : [];
     if (calls.length) {
+      const toolTurn = turn;
       const results = await Promise.all(calls.map(execute));
       if (closed || events.readyState !== 'open') return;
       calls.forEach((call, index) => send({ type: 'conversation.item.create',
         item: { type: 'function_call_output', call_id: call.call_id, output: JSON.stringify(results[index]) } }));
-      requestResponse();
+      if (turn === toolTurn) send({ type: 'response.create' });
       return;
     }
-    responding = false;
-    gate.agentBusy(playing);
     if (response.status === 'failed') options.notice('ผู้จัดการตอบไม่สำเร็จ ลองส่งคำถามอีกครั้ง');
   }
 
   function receive(raw: unknown) {
     const { type } = eventHeader.parse(raw);
     switch (type) {
+      case 'input_audio_buffer.speech_started':
+        turn += 1;
+        options.interruptAvatar();
+        break;
       case 'input_audio_buffer.committed': {
         const { item_id } = item.parse(raw);
         expectTranscript(item_id);
         options.record({ id: item_id, kind: 'chat', from: 'owner', text: 'กำลังถอดเสียง…', final: false });
-        responding = true;
-        gate.agentBusy(true);
         break;
       }
       case 'conversation.item.input_audio_transcription.completed': {
@@ -209,10 +196,8 @@ export function createCloudCall(options: CloudOptions) {
         options.record({ id: item_id, kind: 'chat', from: 'owner', text: 'ถอดเสียงไม่สำเร็จ', final: true });
         break;
       }
-      case 'response.created': responding = true; gate.agentBusy(true); break;
-      case 'output_audio_buffer.started': playing = true; gate.agentBusy(true); break;
-      case 'output_audio_buffer.cleared':
-      case 'output_audio_buffer.stopped': playing = false; gate.agentBusy(responding); break;
+      case 'output_audio_buffer.started': options.resumeAvatar(); break;
+      case 'output_audio_buffer.cleared': options.interruptAvatar(); break;
       case 'response.output_audio_transcript.delta':
       case 'response.output_text.delta': {
         const { item_id, delta } = deltaPart.parse(raw);
@@ -259,5 +244,5 @@ export function createCloudCall(options: CloudOptions) {
     await peer.setRemoteDescription({ type: 'answer', sdp: data.sdp });
   }
 
-  return { connect, setMic, playAudio, close, notePlayback: () => gate.audio() };
+  return { connect, setMic, playAudio, close };
 }
